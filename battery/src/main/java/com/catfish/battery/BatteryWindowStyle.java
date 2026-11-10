@@ -112,6 +112,14 @@ final class BatteryWindowStyle {
             .pickCard{width:min(1000px,calc(100% - 96px));max-height:85vh;padding:32px;border-radius:24px}
             .pickHead b{font-size:32px}.pickList{gap:23px}.pickList button{min-height:90px;padding:20px 28px;font-size:28px}.pickList small{font-size:24px}
             .toastRegion{width:560px;bottom:28px;right:28px}.toast{padding:20px;font-size:24px}
+            /* Freshness + readability polish for the standalone window. The pack SVG geometry is untouched. */
+            .updBadge{display:inline-flex;align-items:center}
+            .chartAxis{font-size:16px;font-weight:700}
+            .chartAxisKw{font-weight:800}
+            .chargeCurve .chartAxis{font-size:15px}
+            .chartEmpty{font-size:22px}
+            .cellMark{font-size:13px}
+            .emptyState{max-width:1000px}.emptyState b{font-size:32px}.emptyState span{font-size:24px}
             /* The diagram keeps its original dark substrate so the original SVG labels stay legible in daylight too. */
             @media(max-width:1900px){body{font-size:20px}.card{padding:18px 22px}.sectionHead h2{font-size:28px}
               .sectionKicker{font-size:20px}.headActions>*+*{margin-left:12px}.softBadge{font-size:18px;padding:6px 12px}

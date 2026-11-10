@@ -58,6 +58,9 @@ final class BatteryDataHub {
         VehicleBatteryReader r = reader();
         BatteryLogger l = logger();
         String json = r == null ? "{\"streamConnected\":false,\"cells\":[]}" : r.read().toJson();
+        // lastUpdatedMs lets the page tell a live reading from a stale cached one; read-only, from recorded arrival times.
+        long updated = r == null ? 0L : r.lastUpdatedMs();
+        json = json.substring(0, json.length() - 1) + ",\"lastUpdatedMs\":" + updated + "}";
         return l == null ? json : json.substring(0, json.length() - 1) + ",\"totals\":" + l.totalsJson() + "}";
     }
 

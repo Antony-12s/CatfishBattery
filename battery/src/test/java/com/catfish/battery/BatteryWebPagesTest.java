@@ -191,4 +191,42 @@ public class BatteryWebPagesTest {
             }
         }
     }
+
+    @Test
+    public void statusHeaderShowsDataFreshnessAndNeverFakesLiveReadings() {
+        String page = BatteryWebPages.status();
+        // a 'last updated' relative-time element sits in the header next to the stream-state badge
+        assertTrue(page.contains("id='batteryUpdated'"));
+        assertTrue(page.contains("id='batteryStreamBadge'"));
+        // freshness is driven from a timestamp in the data JSON and resolves to a clear connection state
+        assertTrue(page.contains("data.lastUpdatedMs"));
+        assertTrue(page.contains("function drawFreshness("));
+        for (String label : new String[]{"'Live'", "'Stale'", "'Reconnecting'"})
+            assertTrue("missing freshness state " + label, page.contains(label));
+        // a transport-up but frozen stream is marked stale, not shown as current
+        assertTrue(page.contains("isStale"));
+        // no-data shows -- (num()), which is distinct from a real 0 that still formats to a number
+        assertTrue(page.contains("el.textContent='--'"));
+    }
+
+    @Test
+    public void statusMarksExtremeCellsWithAShapeNotColourAlone() {
+        String page = BatteryWebPages.status();
+        // ▲ / ▼ markers ride the schematic's highest/lowest cell, and the legend documents the shapes
+        assertTrue(page.contains("'cellMark'"));
+        assertTrue(page.contains("maxMark") && page.contains("minMark"));
+        assertTrue(page.contains("▼ lowest · ▲ highest"));
+        // a tapped cell/sensor also gets an outline highlight at its position
+        assertTrue(page.contains("packSel") && page.contains("function highlight("));
+    }
+
+    @Test
+    public void emptyHistoryExplainsDataAppearsAfterTheFirstCharge() {
+        String page = BatteryWebPages.history();
+        assertTrue(page.contains("emptyState"));
+        assertTrue(page.contains("No charges logged yet"));
+        assertTrue(page.contains("After the first charge"));
+        // the bare single-paragraph placeholder is gone
+        assertFalse(page.contains("No charge recorded yet. One shows up here"));
+    }
 }

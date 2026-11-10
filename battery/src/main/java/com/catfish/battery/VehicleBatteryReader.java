@@ -416,6 +416,17 @@ public final class VehicleBatteryReader {
         return Double.isFinite(power) ? power : null;
     }
 
+    /**
+     * Most recent arrival time (epoch ms, this device's clock) of any tracked reading, cell or scalar;
+     * 0 before any data has ever arrived. The page compares it to its own clock to show data freshness and
+     * flag stale values. Read-only: this only reports observation times already recorded by the stream.
+     */
+    public synchronized long lastUpdatedMs() {
+        long max = Math.max(lastObservedCellUpdateAtMs, lastCellUpdateAtMs);
+        for (Long at : observedAtMs.values()) if (at != null && at > max) max = at;
+        return max;
+    }
+
     public void close() {
         apvp.close();
         synchronized (this) {
