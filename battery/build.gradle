@@ -1,0 +1,62 @@
+plugins {
+    id 'com.android.application'
+    id 'com.google.protobuf'
+}
+
+// Standalone Catfish Battery APK: the Custom Profiles Battery pages without Custom Profiles.
+android {
+    namespace 'com.catfish.battery'
+    compileSdk 33
+
+    defaultConfig {
+        applicationId "com.catfish.battery"
+        minSdk 30
+        targetSdk 33
+        versionCode 3
+        versionName "1.2"
+    }
+
+    buildTypes {
+        release {
+            // Same signer as :app and :split (the developer's ~/.android/debug.keystore).
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = "catfish_battery_${variant.versionName}_${variant.buildType.name}.apk"
+        }
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
+dependencies {
+    implementation 'io.grpc:grpc-okhttp:1.62.2'
+    implementation 'io.grpc:grpc-stub:1.62.2'
+    implementation 'io.grpc:grpc-protobuf-lite:1.62.2'
+    implementation 'com.google.protobuf:protobuf-javalite:3.21.7'
+    compileOnly 'org.apache.tomcat:annotations-api:6.0.53'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+}
+
+protobuf {
+    protoc { artifact = 'com.google.protobuf:protoc:3.21.7' }
+    plugins { grpc { artifact = 'io.grpc:protoc-gen-grpc-java:1.62.2' } }
+    generateProtoTasks {
+        all().each { task ->
+            task.builtins { java { option 'lite' } }
+            task.plugins { grpc { option 'lite' } }
+        }
+    }
+}

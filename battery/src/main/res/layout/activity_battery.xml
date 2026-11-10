@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Custom Profiles Battery category as its own screen: four tabs over the battery pages. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/app_background"
+    android:orientation="vertical"
+    android:paddingStart="32dp"
+    android:paddingTop="20dp"
+    android:paddingEnd="32dp"
+    android:paddingBottom="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="104dp"
+        android:layout_marginBottom="20dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="340dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/app_name"
+                android:textColor="@color/app_text"
+                android:textSize="30sp"
+                android:fontFamily="sans-serif-medium" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/vehicle_name"
+                android:textColor="@color/app_muted"
+                android:textSize="18sp"
+                android:letterSpacing="0.14" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/battery_tabs"
+            android:baselineAligned="false"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/tab_rail"
+            android:padding="8dp"
+            android:orientation="horizontal">
+            <Button android:id="@+id/battery_tab_status" style="@style/Tab" android:text="@string/battery_tab_status" />
+            <Button android:id="@+id/battery_tab_charging" style="@style/Tab" android:text="@string/battery_tab_charging" />
+            <Button android:id="@+id/battery_tab_history" style="@style/Tab" android:text="@string/battery_tab_history" />
+            <Button android:id="@+id/battery_tab_settings" style="@style/Tab" android:text="@string/battery_tab_settings" android:layout_marginEnd="0dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/battery_unavailable"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:paddingTop="80dp"
+        android:text="@string/battery_webview_missing"
+        android:textSize="28sp"
+        android:visibility="gone" />
+
+    <FrameLayout
+        android:id="@+id/battery_web_slot"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+</LinearLayout>

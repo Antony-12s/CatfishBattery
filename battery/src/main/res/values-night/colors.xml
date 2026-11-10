@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="accent">#FF2A74D6</color>
+    <color name="app_text">#FFE8EEF5</color>
+    <color name="app_muted">#FFA7B6C8</color>
+    <color name="tab_pressed">#FF245FA8</color>
+    <color name="app_background">#FF20272E</color>
+    <color name="app_surface">#D915191F</color>
+</resources>

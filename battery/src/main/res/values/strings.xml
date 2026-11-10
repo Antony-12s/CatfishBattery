@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Catfish Battery</string>
+    <string name="vehicle_name">GEELY EX5</string>
+    <string name="battery_tab_status">Status</string>
+    <string name="battery_tab_charging">Charging</string>
+    <string name="battery_tab_history">History</string>
+    <string name="battery_tab_settings">Settings</string>
+    <string name="battery_webview_missing">This head unit has no WebView, so the battery pages cannot be shown.</string>
+    <string name="battery_service_running">Logging battery and charging</string>
+</resources>

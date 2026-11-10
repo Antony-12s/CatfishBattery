@@ -1,0 +1,28 @@
+# Generated/local files
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+__pycache__/
+*.py[cod]
+out/
+dist/
+
+# Device data, signing credentials and binaries belong outside git.
+*.apk
+*.aab
+*.idsig
+*.dex
+*.keystore
+*.jks
+*.p12
+*.pem
+*.pk8
+*.key
+.env
+.env.*
+*.hprof
+*.log
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
