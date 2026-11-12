@@ -134,11 +134,11 @@ final class BatteryWindowStyle {
 
     static String script() {
         return """
-            // Fit by both axes, not a fixed width cap. No stretch: the original 1180x470 geometry is unchanged.
+            // Fit by both axes, not a fixed width cap. No stretch: the schematic keeps its viewBox aspect (pack geometry unchanged).
             function fitPackBox(){
               const wrap=document.querySelector('.packWrap'),box=document.querySelector('.packBox');
               if(!wrap||!wrap.clientHeight)return;
-              const width=Math.min(wrap.clientWidth-2,(wrap.clientHeight-2)*1180/470);
+              const width=Math.min(wrap.clientWidth-2,(wrap.clientHeight-2)*PACK_RATIO);
               box.style.width=Math.max(0,width)+'px';
               if(typeof moverKeys==='function')moverKeys();
             }
@@ -147,6 +147,6 @@ final class BatteryWindowStyle {
               packResize.observe(document.querySelector('.packWrap'));
               fitPackBox();
             }
-            """;
+            """.replace("PACK_RATIO", BatteryWebPages.VIEW_W + "/" + BatteryWebPages.VIEW_H);
     }
 }

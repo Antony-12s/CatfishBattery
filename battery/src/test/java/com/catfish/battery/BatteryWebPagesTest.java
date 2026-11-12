@@ -1,8 +1,11 @@
 package com.catfish.battery;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
@@ -25,13 +28,128 @@ public class BatteryWebPagesTest {
     @Test
     public void embeddedStatusRetainsTheOriginalThreeDimensionalPackAndFlows() {
         String page = BatteryWebPages.embedded("status", true);
-        assertTrue(page.contains("viewBox='0 0 1180 470'"));
+        assertTrue(page.contains("viewBox='-100 0 1390 470'"));
         assertTrue(page.contains("function boxFaces("));
-        assertTrue(page.contains("const FP={hv:[[52,110]"));
+        assertTrue(page.contains("const FP={hv:[[-61,110]"));
         assertTrue(page.contains("localStorage.getItem('cfPackView')"));
         assertTrue(page.contains("packTabSchematic"));
         assertTrue(page.contains("packTabCells"));
         assertTrue("pack must fit by width AND height", page.contains("function fitPackBox()"));
+    }
+
+    // Pack hull in pack-local SVG units, shadow ellipse included (measured in Chrome: polygons x 219.8..840.2,
+    // y 50.4..448.6; shadow x 210.8..866.8). The side panels must stay fully left or right of it.
+    private static final double PACK_LEFT = 210.8, PACK_RIGHT = 866.8, MARGIN = 8;
+
+    private static List<double[]> sysNodes(String page) {
+        Matcher m = Pattern.compile("<rect class='sysNode' x='(-?[0-9.]+)' y='(-?[0-9.]+)' width='([0-9.]+)' height='([0-9.]+)'").matcher(page);
+        List<double[]> out = new ArrayList<>();
+        while (m.find()) out.add(new double[]{Double.parseDouble(m.group(1)), Double.parseDouble(m.group(2)), Double.parseDouble(m.group(3)), Double.parseDouble(m.group(4))});
+        return out;
+    }
+
+    private static double[][] flow(String page, String key) {
+        Matcher m = Pattern.compile(key + ":\\[(\\[-?[0-9]+,-?[0-9]+\\](?:,\\[-?[0-9]+,-?[0-9]+\\])*)\\]").matcher(page);
+        assertTrue("flow path " + key, m.find());
+        Matcher p = Pattern.compile("\\[(-?[0-9]+),(-?[0-9]+)\\]").matcher(m.group(1));
+        List<double[]> pts = new ArrayList<>();
+        while (p.find()) pts.add(new double[]{Integer.parseInt(p.group(1)), Integer.parseInt(p.group(2))});
+        return pts.toArray(new double[0][]);
+    }
+
+    @Test
+    public void sidePanelsFitTheWiderViewBoxAndStayBesideThePack() {
+        String page = BatteryWebPages.status();
+        double x0 = BatteryWebPages.VIEW_X, x1 = x0 + BatteryWebPages.VIEW_W, h = BatteryWebPages.VIEW_H;
+        assertEquals("-100 0 1390 470", BatteryWebPages.VIEW_BOX);
+        List<double[]> nodes = sysNodes(page);
+        assertEquals("Loads, DC-DC, 12 V battery and charger", 4, nodes.size());
+        for (double[] r : nodes) {
+            String at = java.util.Arrays.toString(r);
+            assertTrue(at + " left of viewBox", r[0] >= x0 + MARGIN);
+            assertTrue(at + " right of viewBox", r[0] + r[2] <= x1 - MARGIN);
+            assertTrue(at + " above viewBox", r[1] >= MARGIN);
+            assertTrue(at + " below viewBox", r[1] + r[3] <= h - MARGIN);
+            assertTrue(at + " overlaps the pack", r[0] + r[2] <= PACK_LEFT || r[0] >= PACK_RIGHT);
+        }
+        // every static label/value of the layer sits inside the canvas and outside the pack hull
+        Matcher t = Pattern.compile("<text (?:id='[A-Za-z]+' )?class='(?:sys|soc)[A-Za-z]*' x='(-?[0-9.]+)' y='([0-9.]+)'").matcher(page);
+        int seen = 0;
+        while (t.find()) {
+            seen++;
+            double x = Double.parseDouble(t.group(1)), y = Double.parseDouble(t.group(2));
+            assertTrue("text at " + x + "," + y, x > x0 && x < x1 && y > 0 && y < h && (x < PACK_LEFT || x > PACK_RIGHT));
+        }
+        assertTrue("found only " + seen + " panel texts", seen >= 20);
+        // readable on the car: titles 20, values 18, labels 17 SVG units
+        assertTrue(page.contains(".sysTitle{fill:#eef3fb;font:700 20px"));
+        assertTrue(page.contains(".sysVal{fill:#eef3fb;font:700 18px"));
+        assertTrue(page.contains(".sysLab{fill:#9aa7bd;font:600 17px"));
+        assertTrue("BMS legend labels", page.contains("'font-size':17,'font-weight':600"));
+        assertTrue("BMS legend values", page.contains("'font-size':18,'font-weight':800,'text-anchor':'end'"));
+        String embedded = BatteryWebPages.embedded("status", true);
+        assertTrue("fitPackBox uses the viewBox ratio", embedded.contains("(wrap.clientHeight-2)*1390/470"));
+        assertFalse(embedded.contains("1180/470"));
+        assertTrue("movers map the shifted viewBox origin", page.contains("VX=-100,VW=1390,VH=470") && page.contains("(p[0]-VX)*sc"));
+    }
+
+    @Test
+    public void packGeometryAndSensorAnchorsKeepTheirOriginalPackLocalCoordinates() {
+        // The canvas grows outward (viewBox origin -100) instead of moving the pack, so the applied pack offset is 0:
+        // these are the 1.3 constants that place every cell, sensor anchor and the pack ends of the flows.
+        String page = BatteryWebPages.status();
+        String[] unchanged = {
+            "KX=1.1,KY=.62,KZ=1.25,CXp=180,CYp=90",
+            "OXp=(1060-(Math.min(...xs)+Math.max(...xs)))/2;OYp=(470-(Math.min(...ys)+Math.max(...ys)))/2",
+            "drawBox(-6,-6,0,372,192,12,",
+            "[[62,0,1,30],[216,0,90,29],[62,94,31,30],[216,94,61,29]]",
+            "const TERM={9:[66,'#f2616b','#0a0f16'],10:[86,'#1a1e26','#5a6478'],5:[126,'#f0792a','#0a0f16'],6:[148,'#2f8fe0','#0a0f16']};",
+            "const AT={11:iso(27,20,54),7:iso(70,87,45),8:iso(54,92,45)}",
+            "[[1,135,43,-4,-40],[4,289,43,6,-40],[2,135,137,-4,40],[3,289,137,34,22]]",
+            "const aa=iso(208,90,30);tag(12,aa[0],aa[1],'air',aa[0]+30,aa[1]-28);",
+            "let py=42,ch=224;",
+            "tube(87,'#f2616b');tube(92,'#2a3142');",
+            "<circle id='flowJunction' class='sysDot' cx='865' cy='341'",
+        };
+        for (String s : unchanged) assertTrue("pack geometry changed: " + s, page.contains(s));
+        assertFalse("pack must not be moved by a transform", page.contains("id='packSvg' transform") || page.contains("<g transform"));
+        // pack-side flow geometry: HV still drops under the pack at y 462 and rises at x 865; DC-DC branches at (865,341)
+        double[][] hv = flow(page, "hv"), dc = flow(page, "dc");
+        assertEquals(462, hv[2][1], 0);
+        assertEquals(462, hv[3][1], 0);
+        assertEquals(865, hv[3][0], 0);
+        assertEquals(865, hv[4][0], 0);
+        assertEquals(865, dc[0][0], 0);
+        assertEquals(341, dc[0][1], 0);
+        // the BMS rows keep their y positions, so HV still leaves the B+ row and the charger feeds the DC CHARGE rows
+        assertEquals(110, hv[0][1], 0);
+        assertEquals(201, flow(page, "chg")[3][1], 0);
+    }
+
+    @Test
+    public void everyFlowStillConnectsThePackToItsMovedNode() {
+        String page = BatteryWebPages.status();
+        List<double[]> n = sysNodes(page);
+        double[] loads = n.get(0), dcdc = n.get(1), lv = n.get(2), chg = n.get(3);
+        double[][] hv = flow(page, "hv"), dc = flow(page, "dc"), low = flow(page, "lv"), ch = flow(page, "chg");
+        double[] hvEnd = hv[hv.length - 1], dcEnd = dc[dc.length - 1];
+        assertEquals("HV enters Loads", loads[0], hvEnd[0], 0);
+        assertTrue(hvEnd[1] > loads[1] && hvEnd[1] < loads[1] + loads[3]);
+        assertEquals("DC-DC branch enters DC-DC", dcdc[0], dcEnd[0], 0);
+        assertTrue(dcEnd[1] > dcdc[1] && dcEnd[1] < dcdc[1] + dcdc[3]);
+        assertEquals("12 V loop leaves DC-DC", dcdc[0] + dcdc[2], low[0][0], 0);
+        assertTrue(low[0][1] > dcdc[1] && low[0][1] < dcdc[1] + dcdc[3]);
+        assertEquals("12 V loop enters the 12 V battery", lv[0] + lv[2], low[low.length - 1][0], 0);
+        assertTrue(low[low.length - 1][1] > lv[1] && low[low.length - 1][1] < lv[1] + lv[3]);
+        assertEquals("charger leaves its node", chg[0], ch[0][0], 0);
+        assertTrue(ch[0][1] > chg[1] && ch[0][1] < chg[1] + chg[3]);
+        // HV starts at the B+ dot (cx -56, r 5); the charger ends just left of the DC CHARGE dots
+        assertTrue(page.contains("pack.append(svgEl('circle',{cx:-56,cy:y,r:5,"));
+        assertEquals(-61, hv[0][0], 0);
+        assertEquals(-64, ch[ch.length - 1][0], 0);
+        for (double[][] f : new double[][][]{hv, dc, low, ch})
+            for (double[] p : f)
+                assertTrue("flow point " + p[0] + "," + p[1] + " outside viewBox", p[0] > BatteryWebPages.VIEW_X && p[0] < BatteryWebPages.VIEW_X + BatteryWebPages.VIEW_W && p[1] > 0 && p[1] < BatteryWebPages.VIEW_H);
     }
 
     @Test

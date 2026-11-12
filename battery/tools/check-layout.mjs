@@ -7,6 +7,8 @@ import {resolve} from 'node:path';
 import assert from 'node:assert/strict';
 
 const dir=resolve(process.argv[2]), profile=resolve(process.env.TMPDIR,'catfish-layout-chrome-'+process.pid);
+// 1.3 sensor anchors (e9d1de9, viewBox 0 0 1180 470) in pack-local SVG units: the wider canvas must not move them.
+const PACK_ANCHORS=[[1,428.8,217.5],[2,532.2,275.8],[3,701.6,180.3],[4,598.2,122],[5,370.5,374.5],[6,394.7,388.2],[7,405.7,283.8],[8,393.6,296.9],[9,304.5,337.3],[10,326.5,349.7],[11,284.7,257.7],[12,560.8,218.9]];
 const settings={currency:'THB',chargers:[{id:'home',name:'Home',price:0,tou:false,peak:0,offPeak:0}],ac:'home',dc:'home',lossAc:0,lossDc:0,budget:0,alertSoc:0};
 const server=createServer(async(req,res)=>{
   const path=new URL(req.url,'http://localhost').pathname;
@@ -59,13 +61,33 @@ try{
         const b=e.getBoundingClientRect();if(!b.width||!b.height||!e.getClientRects().length)continue;
         if(b.bottom>innerHeight+1||b.right>innerWidth+1||b.top< -1||b.left< -1)outside.push(e.id||e.className);}
       const svg=document.querySelector('#packSvg'),box=svg?.getBoundingClientRect();
-      const packRatio=box?Math.abs(box.width/box.height-1180/470):0;
-      return {height:innerHeight,cardBottom:r.bottom,outside,packRatio,docHeight:document.documentElement.scrollHeight,tiles:document.querySelectorAll('.mc:not(.st)').length};})()`);
+      const packRatio=box?Math.abs(box.width/box.height-1390/470):0;
+      let pack=null;if(svg&&svg.checkVisibility()){
+        // pack-local geometry must stay exactly as in 1.3 (the wider canvas grows outward, the pack is not moved)
+        const P=[...svg.querySelectorAll('polygon')],pts=P.map(p=>p.getAttribute('points')).join('|');let hash=0;for(const ch of pts)hash=(hash*31+ch.charCodeAt(0))>>>0;
+        const anchors=[...svg.querySelectorAll('circle[data-sensor]')].map(c=>[+c.dataset.sensor,+c.getAttribute('cx'),+c.getAttribute('cy')]).sort((a,b)=>a[0]-b[0]);
+        const hull=P.map(p=>p.getBBox()).reduce((u,b)=>[Math.min(u[0],b.x),Math.min(u[1],b.y),Math.max(u[2],b.x+b.width),Math.max(u[3],b.y+b.height)],[1e9,1e9,-1e9,-1e9]);
+        const vb=svg.viewBox.baseVal,clash=[];document.getElementById('chgNode').style.display='';
+        // panels and their text: inside the canvas, never over the pack hull
+        for(const e of svg.querySelectorAll('.sysNode,#sysLayer text,#packSvg>text')){const b=e.getBBox();
+          if(b.x<vb.x||b.y<vb.y||b.x+b.width>vb.x+vb.width||b.y+b.height>vb.y+vb.height)clash.push('outside:'+(e.id||e.textContent||e.className.baseVal));
+          const onPack=b.x<hull[2]&&b.x+b.width>hull[0]&&b.y<hull[3]&&b.y+b.height>hull[1],packTag=/^(P[1-4]|air|FRONT)/.test(e.textContent);
+          if(onPack&&!packTag)clash.push('pack:'+(e.id||e.textContent||'node'));}
+        document.getElementById('chgNode').style.display='none';
+        pack={hash,polygons:P.length,anchors,viewBox:[vb.x,vb.y,vb.width,vb.height].join(' '),clash};}
+      return {height:innerHeight,cardBottom:r.bottom,outside,packRatio,pack,docHeight:document.documentElement.scrollHeight,tiles:document.querySelectorAll('.mc:not(.st)').length};})()`);
     const label=`${width}x${height} ${theme} ${page}/${state}`;
     assert(fit.outside.length===0,label+' outside: '+fit.outside);
     assert(Math.abs(fit.cardBottom-height)<2,label+' card does not fill window: '+fit.cardBottom);
     assert(fit.docHeight<=height+1,label+' outer page scrolls: '+fit.docHeight);
     if(page==='status'&&state==='schematic')assert(fit.packRatio<.002,label+' SVG distorted');
+    if(page==='status'&&state==='schematic'){
+     assert.equal(fit.pack.viewBox,'-100 0 1390 470',label+' viewBox');
+     assert.equal(fit.pack.polygons,360,label+' pack polygons');
+     assert.equal(fit.pack.hash,779587572,label+' pack polygon points changed');
+     assert.deepEqual(fit.pack.anchors,PACK_ANCHORS,label+' sensor anchors moved');
+     assert.deepEqual(fit.pack.clash,[],label+' side panels clash');
+    }
     if(page==='status'&&state==='cells')assert.equal(fit.tiles,118,label+' missing cells');
     ledger.push({label,...fit});
     if(width===2496){const shot=await c('Page.captureScreenshot',{format:'png'});await writeFile(resolve(dir,`${page}-${state}-${theme}.png`),Buffer.from(shot.data,'base64'));}
@@ -85,5 +107,5 @@ try{
  }
  assert.deepEqual(errors,[],'browser script exceptions');
  await writeFile(resolve(dir,'layout-results.json'),JSON.stringify({ledger,errors},null,2));
- console.log('PASS',ledger.length,'layout states; original SVG aspect ratio, 118 cells, day/night, actual mouse navigation, TOU, add charger, AC/DC defaults.');
+ console.log('PASS',ledger.length,'layout states; schematic aspect ratio, unchanged pack geometry/anchors, side panels clear of the pack, 118 cells, day/night, actual mouse navigation, TOU, add charger, AC/DC defaults.');
 }finally{if(ws)ws.close();chrome.kill();server.close();}
