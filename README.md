@@ -1,28 +1,82 @@
 # Catfish Battery
 
-Standalone battery monitor for the Geely EX5 head unit.
+A standalone battery monitor for the Geely EX5 head unit: live pack status,
+charging graphs, a charge log with costs, and the settings behind them.
 
-- **Package:** `com.catfish.battery`
-- **Current release:** 1.2 (`versionCode` 3)
-- **Android:** 11+ (`minSdk` 30)
-- **UI:** Status (original 3D Schematic and 118-cell view), Charging, History, Settings
+![Status tab on the car](docs/screenshots/status.png)
+
+| | |
+|---|---|
+| **Package** | `com.catfish.battery` |
+| **Version** | 1.4 (`versionCode` 5) on this branch; latest release is [1.3](https://github.com/Antony-12s/CatfishBattery/releases) |
+| **Android** | 11+ (`minSdk` 30), built for the EX5 2560x1600 head unit |
+| **Vehicle access** | Read-only. It never writes vehicle properties |
+
+## What it shows
+
+### Status
+The 3D pack schematic with all 118 cell voltages and 12 temperature sensors,
+live pack power, where that power goes (motor, cabin climate, battery thermal,
+other), the DC-DC converter and the 12 V battery. A **Cells** view lists every
+cell. The bottom row keeps energy totals: used, charged and regen.
+
+### Charging
+
+![Charging tab](docs/screenshots/charging.png)
+
+SOC and pack power over 1 h, 6 h, 24 h, 7 d or 30 d, with charge sessions
+highlighted, plus the recent charges with their SOC range, energy and peak kW.
+
+### History
+
+![History tab](docs/screenshots/history.png)
+
+Every charge, newest first, grouped by month. Tap a charge to pick which
+charger it was, so its cost uses that charger's price. Monthly totals compare
+against an optional budget.
+
+### Settings
+
+![Settings tab](docs/screenshots/settings.png)
+
+- Chargers with a flat price or time-of-use prices, and AC/DC defaults
+- Currency, charging losses, monthly budget and a charge-level alert
+- **Reset totals**: clears the used, charged and regen totals and their cost
+  now. Charge history and settings are kept.
+- **Auto reset**: off, every month, or every N months (2-12) on a chosen day.
+  "Last day" follows the length of each month. The next reset date shows
+  after Save.
+
+Screenshots were taken on the car (firmware 1.3) on 12 Nov 2026, with the
+system bars cropped out. The values are real readings from that moment.
+
+## How it works
 
 The app reads the head unit's VHAL (`localhost:40004`) and APVP
-(`localhost:40005`) streams. It does not write vehicle properties. A foreground
-service keeps charge logging alive while the screen is closed and starts on
-boot. It works independently of Custom Profiles (CF), which is unchanged.
+(`localhost:40005`) streams. A foreground service logs every 10 s while the
+head unit is on, and starts again on boot. If the head unit sleeps through a
+scheduled reset, the reset runs once on wake. The app works independently of
+Custom Profiles (CF), which stays unchanged.
 
-## Download
+## Install
 
-Download `catfish_battery_1.2_release.apk` and `SHA256SUMS` from
-[Releases](https://github.com/Antony-12s/CatfishBattery/releases).
-Release files are not committed to the source tree.
+Download the APK and `SHA256SUMS` from
+[Releases](https://github.com/Antony-12s/CatfishBattery/releases). APKs are
+release assets only, never committed to the source tree.
+
+Update in place with `adb install -r` for the active Android user (user 11 on
+the EX5), only while parked. **Never uninstall or clear data to work around a
+signing mismatch**: that deletes the charge history.
+
+Firmware 1.3 rejects adb installs with `INSTALL_FAILED_VERIFICATION_FAILURE`
+while `verifier_verify_adb_installs` is 1. Set it to 0 for the install only,
+and restore the earlier value in the same shell script.
 
 ## Build
 
 Requires an Android SDK with platform 33, JDK 17+ (JDK 21 tested) and network
-access for the Gradle dependencies. Gradle 8.14.4 is included through its wrapper.
-No CF checkout or signing credentials are included.
+access for the Gradle dependencies. Gradle 8.14.4 comes with the wrapper. No CF
+checkout or signing credentials are included.
 
 ```sh
 export ANDROID_HOME="$HOME/Android/Sdk"
@@ -30,56 +84,50 @@ export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 ./gradlew :battery:testDebugUnitTest :battery:assembleRelease :battery:lintRelease
 ```
 
-Output: `battery/build/outputs/apk/release/catfish_battery_1.2_release.apk`.
-Read [UI test instructions](battery/tools/README.md) for browser and owned
-Android 11 emulator checks.
+Output: `battery/build/outputs/apk/release/catfish_battery_<version>_release.apk`.
+See [UI checks](battery/tools/README.md) for the browser and emulator checks.
 
-### Signing and data-preserving updates
+### Signing
 
-The Gradle release variant currently uses the local Android debug keystore,
-matching the development build used on the car. **Each machine's debug key
-is different.** A rebuild from another machine is not update-compatible
-unless it is signed with the authorized original key. No private key is
-included in this repository.
+The release variant uses the local Android debug keystore, the same one used
+for the car build. **Each machine's debug key is different**, so a build from
+another machine cannot update the installed app unless it is signed with the
+original key. No private key is in this repository.
 
-Installed 1.2 signing-certificate SHA-256:
+Release signing certificate SHA-256 (1.2 to 1.4):
 
 ```text
 77ed0ffb4263c5a7ac30002cc79825c03068fc390eee0e446daf53ca2df37e46
 ```
 
-Compare the installed and candidate signers before updating. Use an in-place
-`-r` install for the verified active Android user. Never uninstall or clear
-data to work around a signing mismatch. Vehicle installation needs the
-owner's approval and a parked vehicle.
+Compare the installed and candidate signers before updating.
 
-## Verification
+## Verification (1.4)
 
-The extracted repository was independently built and checked:
+- 56 unit tests, 0 failures. Release build passes.
+- Android lint: 0 errors, 15 warnings.
+- Installed on the car over 1.3 with `-r`. All four tabs open and show live
+  data. The reset buttons were not pressed on the car.
 
-- 45 unit tests, 0 failures/errors; release build passed.
-- Android lint: 0 errors, 14 warnings (not a warning-free build).
-- 20 browser layout states across two window sizes and day/night passed again.
-- Every rebuilt ZIP entry outside `META-INF/` matched the original on-car APK;
-  complete APK bytes differ, so the release retains the original verified binary.
-
-The shipped 1.2 APK was additionally tested before extraction:
-- Actual Android 11 release-APK interaction sweep: all 4 tabs, Schematic/Cells,
-  day/night and Settings Save/reopen; no observed crash.
-- Exact installed APK bytes pulled back from the car matched the release hash.
-- On-car 1.2 review: original 3D Schematic, all 118 cells/12 temperature sensors,
-  Charging chart, empty History, and Settings fit above the climate dock.
-
-These are distinct checks; an emulator's unavailable telemetry is not live
-vehicle evidence. No real charge session or STR/sleep survival was verified.
+Not verified: an automatic reset firing on the car, a real charge logged by
+1.4, and long-term survival through the head unit's sleep (STR) policy.
 
 ## Known limits
 
-- CF history is not migrated; Catfish has its own independent files/settings.
-- No root-based car_service range probe. Unavailable metrics remain `--`.
-- Background logging may be interrupted by the head unit's STR/idle policy;
-  long-term survival is not verified.
-- Pricing and cost calculations require the user's charger settings.
+- CF charge history is not migrated; Catfish keeps its own files and settings.
+- Metrics the car does not report stay `--`. There is no root-based range probe.
+- Background logging can stop when the head unit sleeps.
+- Costs need charger prices in Settings.
 
-See [DECISIONS.md](DECISIONS.md) for scope and [NOTICE.md](NOTICE.md) for source
-provenance. This private extraction does not establish a new code license.
+## Project layout
+
+| Path | Contents |
+|---|---|
+| `battery/src/main/java/com/catfish/battery/` | App source: data readers, logger, pages |
+| `battery/src/test/` | Unit tests |
+| `battery/tools/` | Page export and UI checks |
+| `docs/screenshots/` | Car screenshots used in this README |
+| [DECISIONS.md](DECISIONS.md) | Scope and design decisions |
+| [NOTICE.md](NOTICE.md) | Source provenance |
+
+This private extraction does not establish a new code license.
