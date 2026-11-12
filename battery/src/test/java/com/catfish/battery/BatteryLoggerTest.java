@@ -62,6 +62,29 @@ public class BatteryLoggerTest {
     }
 
     @Test
+    public void autoResetRunsOnceAfterMissedDueDaysAndNotOnSave() {
+        File dir = tmp.getRoot();
+        java.util.TimeZone tz = java.util.TimeZone.getDefault();
+        java.util.Calendar c = java.util.Calendar.getInstance(tz);
+        c.clear();
+        c.set(2026, 0, 10, 9, 0, 0);
+        long jan10 = c.getTimeInMillis();
+        BatteryLogger logger = new BatteryLogger(dir, null);
+        logger.resetTotals(jan10);
+        logger.addPower(jan10 + 1000L, 36d, false);
+        logger.addPower(jan10 + 11000L, 36d, false);
+        // saving the schedule on Jan 10 must not wipe the month already counted
+        logger.saveSettings("{\"resetMode\":\"monthly\",\"resetDay\":1}", jan10 + 12000L);
+        assertTrue(logger.totalsJson().contains("\"usedWh\":100.000"));
+
+        // the head unit slept through Feb 1 and Mar 1: one reset, dated the last due day
+        c.set(2026, 2, 15, 9, 0, 0);
+        logger.autoReset(c.getTimeInMillis());
+        c.set(2026, 2, 1, 0, 0, 0);
+        assertEquals("{\"since\":" + c.getTimeInMillis() + ",\"usedWh\":0.000,\"chargedWh\":0.000,\"regenWh\":0.000}", logger.totalsJson());
+    }
+
+    @Test
     public void appendStartsItsOwnLineAfterATornRow() throws Exception {
         File log = new File(tmp.getRoot(), "log.csv");
         Files.write(log.toPath(), "ts,soc\n1700000000000,5".getBytes(StandardCharsets.UTF_8));

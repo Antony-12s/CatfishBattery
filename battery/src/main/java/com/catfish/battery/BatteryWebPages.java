@@ -338,7 +338,11 @@ final class BatteryWebPages {
          .append("<div class='prow'><div><b>Charging loss</b><small>what the pack does not keep; every cost grows by it</small></div><span class='pair'><span class='field'><input id='setLossAc' ").append(num)
          .append(" aria-label='AC charging loss'><em>% AC</em></span><span class='field'><input id='setLossDc' ").append(num).append(" aria-label='DC charging loss'><em>% DC</em></span></span></div>")
          .append("<div class='prow'><div><b>Monthly budget</b><small>History shows the month against it; 0 = none</small></div><span class='field budget'><i class='curSym'></i><input id='setBudget' ").append(num).append(" aria-label='Monthly budget'></span></div>")
-         .append("<div class='prow'><div><b>Charge alert</b><small>a message on screen once per charge</small></div><select id='setAlert' aria-label='Charge alert'></select></div></div></div>")
+         .append("<div class='prow'><div><b>Charge alert</b><small>a message on screen once per charge</small></div><select id='setAlert' aria-label='Charge alert'></select></div>")
+         // clears Used / Charged / Regen and the cost from them only; charge history and settings stay
+         .append("<div class='prow'><div><b>Reset totals</b><small>Used, charged, regen and their cost; charge history stays</small></div><button type='button' class='ghost compact' onclick='resetNow(this)'>Reset now</button></div>")
+         .append("<div class='prow'><div><b>Auto reset</b><small id='setResetNext'>Off</small></div><span class='pair'><select id='setResetMode' aria-label='Auto reset'><option value='off'>Off</option><option value='monthly'>Every month</option><option value='months'>Every N months</option></select>")
+         .append("<select id='setResetMonths' aria-label='Months between resets'></select><select id='setResetDay' aria-label='Reset day'></select></span></div></div></div>")
          .append("<div class='savebar'><span class='setState' role='status'></span><button type='button' class='primary setSave' onclick='saveSettings()'>Save</button></div></section>");
         return document("Battery settings", b.toString(), commonScript() + settingsScript());
     }
@@ -367,19 +371,28 @@ final class BatteryWebPages {
                 "function render(s){Q$('setCurrency').innerHTML=Object.keys(CURRENCY).map(k=>'<option value=\"'+k+'\">'+k+' · '+CURRENCY[k]+'</option>').join('');Q$('setCurrency').value=s.currency;\n" +
                 "const list=Q$('setChargers');list.replaceChildren();s.chargers.forEach(c=>list.appendChild(chargerRow(c)));Q$('setAc').dataset.want=s.ac;Q$('setDc').dataset.want=s.dc;Q$('setAc').value='';Q$('setDc').value='';fillDefaults();\n" +
                 "Q$('setLossAc').value=shown(s.lossAc);Q$('setLossDc').value=shown(s.lossDc);Q$('setBudget').value=shown(s.budget);\n" +
-                "let opts='<option value=\"0\">Off</option>';for(let p=50;p<=100;p+=5)opts+='<option value=\"'+p+'\">'+p+' %</option>';Q$('setAlert').innerHTML=opts;Q$('setAlert').value=String(s.alertSoc>=50&&s.alertSoc%5===0?s.alertSoc:0)}\n" +
+                "let opts='<option value=\"0\">Off</option>';for(let p=50;p<=100;p+=5)opts+='<option value=\"'+p+'\">'+p+' %</option>';Q$('setAlert').innerHTML=opts;Q$('setAlert').value=String(s.alertSoc>=50&&s.alertSoc%5===0?s.alertSoc:0);\n" +
+                "let days='';for(let d=1;d<=31;d++)days+='<option value=\"'+d+'\">'+(d===31?'Last day':'Day '+d)+'</option>';Q$('setResetDay').innerHTML=days;\n" +
+                "let ms='';for(let m=2;m<=12;m++)ms+='<option value=\"'+m+'\">Every '+m+' months</option>';Q$('setResetMonths').innerHTML=ms;\n" +
+                "Q$('setResetMode').value=s.resetMode||'off';Q$('setResetDay').value=String(s.resetDay||1);Q$('setResetMonths').value=String(Math.max(2,s.resetMonths||2));resetShown()}\n" +
+                "// the next date comes from the app after a save; before that the row says the change is pending\n" +
+                "function resetShown(){const mode=Q$('setResetMode').value,saved=CFS&&mode===CFS.resetMode&&Q$('setResetDay').value==String(CFS.resetDay)&&(mode!=='months'||Q$('setResetMonths').value==String(CFS.resetMonths));\n" +
+                "Q$('setResetDay').style.display=mode==='off'?'none':'';Q$('setResetMonths').style.display=mode==='months'?'':'none';\n" +
+                "Q$('setResetNext').textContent=mode==='off'?'Off':!saved?'Next date shows after Save':cfsNext?'Next: '+new Date(cfsNext).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'Scheduled'}\n" +
+                "function resetNow(b){if(!b.dataset.armed){b.dataset.armed='1';b.textContent='Tap again to reset';setTimeout(()=>{delete b.dataset.armed;b.textContent='Reset now'},4000);return}delete b.dataset.armed;b.textContent='Reset now';\n" +
+                "fetch('/batt-totals-reset',{method:'POST'}).then(r=>{if(!r.ok)throw 0;showToast('Totals reset');return loadSettings()}).then(()=>resetShown()).catch(()=>showToast('Reset failed, try again','error'))}\n" +
                 "function addCharger(){const row=chargerRow({id:'c'+Date.now().toString(36),name:'',price:0});Q$('setChargers').appendChild(row);fillDefaults();dirty();row.querySelector('.cName').focus()}\n" +
                 "function collect(){return{currency:Q$('setCurrency').value,chargers:rowsOf().map(r=>({id:r.dataset.id,name:r.querySelector('.cName').value.trim(),price:numOf(r.querySelector('.cPrice')),tou:r.querySelector('.cTou input').checked,\n" +
-                "offPeak:numOf(r.querySelector('.cOff')),peak:numOf(r.querySelector('.cPeak'))})),ac:Q$('setAc').value,dc:Q$('setDc').value,lossAc:numOf(Q$('setLossAc')),lossDc:numOf(Q$('setLossDc')),budget:numOf(Q$('setBudget')),alertSoc:Number(Q$('setAlert').value)}}\n" +
+                "offPeak:numOf(r.querySelector('.cOff')),peak:numOf(r.querySelector('.cPeak'))})),ac:Q$('setAc').value,dc:Q$('setDc').value,lossAc:numOf(Q$('setLossAc')),lossDc:numOf(Q$('setLossDc')),budget:numOf(Q$('setBudget')),alertSoc:Number(Q$('setAlert').value),resetMode:Q$('setResetMode').value,resetDay:Number(Q$('setResetDay').value),resetMonths:Q$('setResetMode').value==='months'?Number(Q$('setResetMonths').value):1}}\n" +
                 "// in the car the app saves it (a WebView request carries no body); the web console takes a POST\n" +
-                "function saveSettings(){const json=JSON.stringify(collect()),done=text=>{const d=JSON.parse(text);CFS=d.settings;cfsSaved=true;render(CFS);setState('Saved','ok');showToast('Settings saved')},fail=()=>setState('Not saved, try again','bad');\n" +
+                "function saveSettings(){const json=JSON.stringify(collect()),done=text=>{const d=JSON.parse(text);CFS=d.settings;cfsNext=d.nextReset;cfsSaved=true;render(CFS);setState('Saved','ok');showToast('Settings saved')},fail=()=>setState('Not saved, try again','bad');\n" +
                 "try{if(window.CFBattery){done(CFBattery.saveSettings(json));return}}catch(e){fail();return}\n" +
                 "fetch('/batt-settings-data',{method:'POST',headers:{'Content-Type':'application/json'},body:json}).then(r=>{if(!r.ok)throw new Error('not saved');return r.text()}).then(done).catch(fail)}\n" +
                 "Q$('setChargers').addEventListener('input',e=>{const t=e.target;if(t.classList.contains('setNum'))t.value=priceText(t.value);if(t.classList.contains('cName'))fillDefaults();dirty()});\n" +
                 "Q$('setChargers').addEventListener('change',e=>{const row=e.target.closest('.chargerRow');if(row&&e.target.type==='checkbox'){touShown(row);dirty()}});\n" +
                 "Q$('setChargers').addEventListener('click',e=>{const def=e.target.closest('.defBtn');if(def){Q$(def.classList.contains('ac')?'setAc':'setDc').value=def.closest('.chargerRow').dataset.id;markDefaults();dirty();return}const del=e.target.closest('.cDel');if(!del)return;if(rowsOf().length<2){showToast('Keep at least one charger','error');return}del.closest('.chargerRow').remove();fillDefaults();dirty()});\n" +
                 "document.querySelectorAll('.prefs .setNum').forEach(e=>e.addEventListener('input',()=>{e.value=priceText(e.value);dirty()}));\n" +
-                "['setCurrency','setAc','setDc','setAlert'].forEach(id=>Q$(id).addEventListener('change',()=>{if(id==='setCurrency')fillDefaults();dirty()}));\n" +
+                "['setCurrency','setAc','setDc','setAlert','setResetMode','setResetDay','setResetMonths'].forEach(id=>Q$(id).addEventListener('change',()=>{if(id==='setCurrency')fillDefaults();if(id.startsWith('setReset'))resetShown();dirty()}));\n" +
                 "// the first time, the price typed on the old tabs' box carries over into the one charger there is\n" +
                 "cfsReady.then(s=>{if(!s){setState('Settings unavailable','bad');return}const copy=JSON.parse(JSON.stringify(s));if(!cfsSaved){try{const p=priceOf(priceText(localStorage.getItem('cfKwhPrice')));if(p>0&&copy.chargers.length===1&&!copy.chargers[0].price)copy.chargers[0].price=p}catch(e){}}\n" +
                 "render(copy);if(cfsSaved)setState('Saved','ok');else setState('Not saved yet','dirty')});\n";
@@ -470,8 +483,8 @@ final class BatteryWebPages {
                 "/* what the price box shows while typing: every run of non-digits becomes a point, and only the first point stays, so 5 *9 reads 5.9 */" +
                 "function priceText(v){let s=String(v==null?'':v).replace(/[^0-9]+/g,'.'),i=s.indexOf('.');return i<0?s:s.slice(0,i+1)+s.slice(i+1).replace(/[.]/g,'')}" +
                 "/* the Battery Settings tab (currency, chargers and prices, losses, budget), shared by every page: loaded once, and again after a save */" +
-                "const CURRENCY={THB:'฿',USD:'$',EUR:'€',GBP:'£',JPY:'¥',CNY:'¥',MYR:'RM',SGD:'S$',LAK:'₭',VND:'₫',IDR:'Rp',PHP:'₱',INR:'₹',AUD:'A$',KRW:'₩'};let CFS=null,cfsSaved=false;" +
-                "function loadSettings(){return fetch('/batt-settings-data?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{CFS=d.settings;cfsSaved=!!d.saved;return CFS}).catch(()=>null)}const cfsReady=loadSettings();" +
+                "const CURRENCY={THB:'฿',USD:'$',EUR:'€',GBP:'£',JPY:'¥',CNY:'¥',MYR:'RM',SGD:'S$',LAK:'₭',VND:'₫',IDR:'Rp',PHP:'₱',INR:'₹',AUD:'A$',KRW:'₩'};let CFS=null,cfsSaved=false,cfsNext=null;" +
+                "function loadSettings(){return fetch('/batt-settings-data?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(d=>{CFS=d.settings;cfsSaved=!!d.saved;cfsNext=d.nextReset||null;return CFS}).catch(()=>null)}const cfsReady=loadSettings();" +
                 "function cur(){return CFS&&CURRENCY[CFS.currency]||'฿'}function money(v){return v==null||!isFinite(v)?'--':cur()+(Math.abs(v)<100?v.toFixed(1):Math.round(v).toLocaleString('en-US'))}function rateText(r){return r.toFixed(2)+' '+cur()+'/kWh'}" +
                 "/* a charge's charger: the driver's pick, else the default for its kind; a charge while parked goes with AC */" +
                 "function chargerOf(s){if(!CFS)return null;let id=s&&s.charger||(s&&s.type==='dc'?CFS.dc:CFS.ac);return CFS.chargers.find(c=>c.id===id)||CFS.chargers.find(c=>c.id===CFS.ac)||CFS.chargers[0]}" +

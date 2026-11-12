@@ -18,6 +18,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.Executors;
@@ -134,15 +135,44 @@ public final class BatteryLogger {
 
     /** The saved settings, or the defaults when nothing was saved yet. */
     synchronized String settingsJson() {
-        return "{\"saved\":" + settingsFile().isFile() + ",\"settings\":" + settings + "}";
+        long next = nextAutoReset();
+        return "{\"saved\":" + settingsFile().isFile() + ",\"settings\":" + settings
+                + ",\"nextReset\":" + (next == Long.MAX_VALUE ? "null" : String.valueOf(next)) + "}";
     }
 
     /** Saves what a page sent, cleaned; returns the clean copy. */
-    synchronized String saveSettings(String raw) {
-        settings = BatterySettings.clean(raw);
+    synchronized String saveSettings(String raw) { return saveSettings(raw, System.currentTimeMillis()); }
+
+    synchronized String saveSettings(String raw, long now) {
+        String clean = BatterySettings.clean(raw);
+        long anchor = BatterySettings.scheduleChanged(settings, clean) ? now : anchorOf(settings);
+        try { clean = new org.json.JSONObject(clean).put("resetAnchor", anchor).toString(); }
+        catch (org.json.JSONException e) { throw new IllegalStateException(e); }
+        settings = clean;
         alertSoc = BatterySettings.alertSoc(settings);
         writeAtomic(settingsFile(), settings);
         return settingsJson();
+    }
+
+    private static long anchorOf(String clean) {
+        try { return new org.json.JSONObject(clean).optLong("resetAnchor", 0L); }
+        catch (org.json.JSONException e) { return 0L; }
+    }
+
+    /** The next scheduled reset, counted from the last reset or the schedule change, whichever is later. */
+    private long nextAutoReset() {
+        return BatterySettings.nextReset(Math.max(totals.sinceTs, anchorOf(settings)), settings, TimeZone.getDefault());
+    }
+
+    /**
+     * Resets the totals when a scheduled day has passed. After a long sleep it resets once, dated the last due day,
+     * so the totals still count from the start of the current period.
+     */
+    synchronized void autoReset(long now) {
+        long due = nextAutoReset();
+        if (due > now) return;
+        for (long n; (n = BatterySettings.nextReset(due, settings, TimeZone.getDefault())) <= now; ) due = n;
+        resetTotals(due);
     }
 
     /** The charger for the charge that started at {@code start}; an empty id puts it back on the default. */
@@ -189,6 +219,7 @@ public final class BatteryLogger {
             last = new double[]{ts, unbox(s.soc), unbox(s.energyWh)};
             lastPlug = plug;
         }
+        autoReset(ts);
         addPower(ts, live ? s.battPowerKw : null, plug != null);
         if (charging) { chargeRun++; idleRun = 0; }
         else if (idle) { idleRun++; chargeRun = 0; }

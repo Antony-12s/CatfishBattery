@@ -66,4 +66,48 @@ public class BatterySettingsTest {
         }
         assertEquals(80, BatterySettings.alertSoc(BatterySettings.clean("{\"alertSoc\":80}")));
     }
+
+    private static final java.util.TimeZone BKK = java.util.TimeZone.getTimeZone("Asia/Bangkok");
+
+    private static long at(int y, int m, int d, int h) {
+        java.util.Calendar c = java.util.Calendar.getInstance(BKK);
+        c.clear();
+        c.set(y, m - 1, d, h, 0, 0);
+        return c.getTimeInMillis();
+    }
+
+    private static long next(long base, String json) {
+        return BatterySettings.nextReset(base, BatterySettings.clean(json), BKK);
+    }
+
+    @Test
+    public void resetScheduleIsCleanedAndOffByDefault() throws Exception {
+        JSONObject s = clean("{\"resetMode\":\"weekly\",\"resetDay\":40,\"resetMonths\":99,\"resetAnchor\":-5}");
+        assertEquals("off", s.getString("resetMode"));
+        assertEquals(31, s.getInt("resetDay"));
+        assertEquals(12, s.getInt("resetMonths"));
+        assertEquals(0, s.getLong("resetAnchor"));
+        assertEquals(Long.MAX_VALUE, next(at(2026, 11, 12, 9), "{}"));
+    }
+
+    @Test
+    public void monthlyResetLandsOnTheChosenDayAtMidnight() {
+        String day25 = "{\"resetMode\":\"monthly\",\"resetDay\":25}";
+        assertEquals(at(2026, 11, 25, 0), next(at(2026, 11, 12, 9), day25));
+        // a reset that just happened on the day counts from there: the next is a month on
+        assertEquals(at(2026, 12, 25, 0), next(at(2026, 11, 25, 0), day25));
+        assertEquals(at(2026, 12, 1, 0), next(at(2026, 11, 12, 9), "{\"resetMode\":\"monthly\"}"));
+    }
+
+    @Test
+    public void dayPastTheMonthEndUsesTheLastDay() {
+        assertEquals(at(2027, 2, 28, 0), next(at(2027, 2, 1, 9), "{\"resetMode\":\"monthly\",\"resetDay\":31}"));
+    }
+
+    @Test
+    public void everyNMonthsCountsFromTheFirstDueDay() {
+        String every3 = "{\"resetMode\":\"months\",\"resetDay\":5,\"resetMonths\":3}";
+        assertEquals(at(2027, 2, 5, 0), next(at(2026, 11, 12, 9), every3));
+        assertEquals(at(2027, 5, 5, 0), next(at(2027, 2, 5, 0), every3));
+    }
 }

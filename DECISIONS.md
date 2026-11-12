@@ -32,3 +32,9 @@ byte-identical until checked. Signing keys and APK files are not tracked.
 The shipped signer is the developer's existing Android Debug certificate;
 a different machine's default debug key cannot update that installation.
 Do not resolve signer mismatches by uninstalling or clearing data.
+
+- Totals reset: manual "Reset now" and an optional monthly / every-N-months
+  schedule clear only Used/Charged/Regen totals, never charge history or
+  settings. A schedule change records `resetAnchor`, so totals counted before
+  it are not wiped by an overdue date. A missed reset (head unit asleep) runs
+  once on wake, dated the last due day. Day 31 means the month's last day.
