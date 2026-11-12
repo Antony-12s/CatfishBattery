@@ -132,6 +132,48 @@ final class BatteryWindowStyle {
             """;
     }
 
+    /** Midnight Champagne, the approved night look: deep black, champagne accents, quiet cards. Night only. */
+    static String champagneNight() {
+        return """
+            :root{--accent:#e2c08d;--accent-2:#f0d6ad;--good:#9fe3b8;--warn:#f3b46a;--text:#f4efe7;--muted:#9a9184;--muted-2:#7d766c;--line:rgba(226,192,141,.12);--line-soft:rgba(226,192,141,.07)}
+            .card{background:linear-gradient(180deg,#121216 0%,#0e0e11 100%)!important;border:1px solid rgba(226,192,141,.13)!important;border-radius:24px!important;box-shadow:0 30px 70px rgba(0,0,0,.55)!important}
+            .sectionHead h2{font-size:34px!important;font-weight:500!important;letter-spacing:.01em;color:#f4efe7!important}
+            .sectionKicker{text-transform:uppercase;letter-spacing:.24em;font-size:14px!important;color:#e2c08d!important;font-weight:600}
+            .liveBadge{background:transparent!important;border:1px solid rgba(159,227,184,.35)!important;color:#9fe3b8!important;font-weight:600;letter-spacing:.06em}
+            .liveBadge.offline{border-color:rgba(255,255,255,.12)!important;color:var(--muted)!important}
+            .updBadge{background:transparent!important;border:0!important;color:var(--muted)!important;font-weight:500}
+            #liveCellCount,#cellTempCount{color:#e2c08d!important;font-weight:600;letter-spacing:.04em}
+            .packTabs{background:transparent!important;border:1px solid rgba(226,192,141,.18)!important;border-radius:999px!important}
+            .packTabs .subtab{border-radius:999px!important;color:var(--muted)!important;font-weight:600}
+            .packTabs .subtab.active{background:#e2c08d!important;color:#141110!important;box-shadow:0 6px 20px rgba(226,192,141,.28)}
+            .packWrap{background:radial-gradient(ellipse at 50% 45%,#16161b 0%,#0d0d10 60%,#09090b 100%)!important;border:1px solid rgba(226,192,141,.08)}
+            .sysNode{fill:rgba(18,18,22,.9)!important;stroke:rgba(226,192,141,.22)!important}
+            .sysPath{stroke:rgba(226,192,141,.5)!important}
+            .sysTitle{fill:#f4efe7!important}.sysLab{fill:#9a9184!important}
+            .socKicker{fill:#e2c08d!important;letter-spacing:.2em}.socBig{font-weight:300!important;letter-spacing:-.03em}
+            .facts{gap:0!important;border-top:1px solid rgba(226,192,141,.14);border-bottom:1px solid rgba(226,192,141,.14);padding:6px 0}
+            .cellFacts{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;border-left:1px solid rgba(226,192,141,.14)!important}
+            .facts>.cellFacts:first-child{border-left:0!important}
+            .cellFacts>div{border:0!important;padding:16px 26px!important}
+            .cellFacts small{text-transform:uppercase;letter-spacing:.2em;font-size:13px!important;color:#e2c08d!important;font-weight:600}
+            .cellFacts strong{font-size:44px!important;font-weight:300!important;letter-spacing:-.02em;color:#f4efe7!important;margin-top:4px!important}
+            .cellFacts em{font-size:14px!important;color:var(--muted-2)!important}
+            .cellFacts strong.good,#batteryCellDelta{color:#9fe3b8!important}
+            .flowStats{background:transparent!important;border:0!important;border-top:1px solid rgba(226,192,141,.14)!important;border-bottom:1px solid rgba(226,192,141,.14)!important;border-radius:0!important}
+            .flowStats>div{border-color:rgba(226,192,141,.14)!important}
+            .flowStats small{text-transform:uppercase;letter-spacing:.2em;font-size:13px!important;color:#e2c08d!important;font-weight:600}
+            .flowStats strong{font-size:46px!important;font-weight:300!important;letter-spacing:-.02em}
+            .histChart,.histSide,.pane,.list,.kpi{background:rgba(255,255,255,.015)!important;border:1px solid rgba(226,192,141,.12)!important;border-radius:20px!important}
+            .rangeSelect{background:transparent!important;border:1px solid rgba(226,192,141,.18)!important;border-radius:999px!important}
+            .rangeSelect button{border-radius:999px!important}
+            .rangeSelect button.active{background:#e2c08d!important;color:#141110!important}
+            .chartAxis{fill:#9a9184!important;font-size:18px!important}
+            .kpi strong{font-size:54px!important;font-weight:300!important}
+            .savebar{background:transparent!important;border:1px solid rgba(226,192,141,.16)!important}
+            .savebar .setSave{background:#e2c08d!important;color:#141110!important}
+            """;
+    }
+
     static String script() {
         return """
             // Fit by both axes, not a fixed width cap. No stretch: the schematic keeps its viewBox aspect (pack geometry unchanged).

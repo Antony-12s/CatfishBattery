@@ -21,6 +21,7 @@ final class BatteryWebPages {
         if (!night) html = html.replace("data-theme='midnight'", "data-theme='daylight'");
         // The head unit runs at 160 dpi, so CSS px are device px. Use the actual WebView window,
         // with readable control sizes instead of zoom: it used to cap the pack and leave the bottom empty.
+        if (night) html = html.replace("</style></head><body>", BatteryWindowStyle.champagneNight() + "</style></head><body>");
         return html.replace("</style></head><body>", BatteryWindowStyle.css() + "</style></head><body>")
                 .replace("</script></body>", BatteryWindowStyle.script() + "</script></body>");
     }

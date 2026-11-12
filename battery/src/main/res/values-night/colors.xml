@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="accent">#FF2A74D6</color>
-    <color name="app_text">#FFE8EEF5</color>
-    <color name="app_muted">#FFA7B6C8</color>
-    <color name="tab_pressed">#FF245FA8</color>
-    <color name="app_background">#FF20272E</color>
-    <color name="app_surface">#D915191F</color>
+    <color name="accent">#FFE2C08D</color>
+    <color name="app_text">#FFF4EFE7</color>
+    <color name="app_muted">#FF9A9184</color>
+    <color name="tab_pressed">#FFC9A771</color>
+    <color name="tab_on_text">#FF141110</color>
+    <color name="app_background">#FF0C0C0F</color>
+    <color name="app_surface">#D9121216</color>
 </resources>
