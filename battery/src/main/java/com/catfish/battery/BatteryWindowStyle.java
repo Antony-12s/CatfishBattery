@@ -135,7 +135,7 @@ final class BatteryWindowStyle {
     /** Midnight Champagne, the approved night look: deep black, champagne accents, quiet cards. Night only. */
     static String champagneNight() {
         return """
-            :root{--accent:#e2c08d;--accent-2:#f0d6ad;--good:#9fe3b8;--warn:#f3b46a;--text:#f4efe7;--muted:#9a9184;--muted-2:#7d766c;--line:rgba(226,192,141,.12);--line-soft:rgba(226,192,141,.07)}
+            :root{--accent:#e2c08d;--accent-2:#f0d6ad;--accent-rgb:226,192,141;--good:#9fe3b8;--warn:#f3b46a;--text:#f4efe7;--muted:#9a9184;--muted-2:#7d766c;--line:rgba(226,192,141,.12);--line-soft:rgba(226,192,141,.07)}
             .card{background:linear-gradient(180deg,#121216 0%,#0e0e11 100%)!important;border:1px solid rgba(226,192,141,.13)!important;border-radius:24px!important;box-shadow:0 30px 70px rgba(0,0,0,.55)!important}
             .sectionHead h2{font-size:34px!important;font-weight:500!important;letter-spacing:.01em;color:#f4efe7!important}
             .sectionKicker{text-transform:uppercase;letter-spacing:.24em;font-size:14px!important;color:#e2c08d!important;font-weight:600}
@@ -150,6 +150,8 @@ final class BatteryWindowStyle {
             .sysNode{fill:rgba(18,18,22,.9)!important;stroke:rgba(226,192,141,.22)!important}
             .sysPath{stroke:rgba(226,192,141,.5)!important}
             .sysTitle{fill:#f4efe7!important}.sysLab{fill:#9a9184!important}
+            /* Remaining hardcoded blues in the page CSS: live flow paths/dots and the load share bars. */
+            .sysPath.on{stroke:#e2c08d!important}.sysDot.on{fill:#e2c08d!important}.sysBar{fill:#e2c08d!important}.sysTrack{fill:rgba(226,192,141,.12)!important}
             .socKicker{fill:#e2c08d!important;letter-spacing:.2em}.socBig{font-weight:300!important;letter-spacing:-.03em}
             .facts{gap:0!important;border-top:1px solid rgba(226,192,141,.14);border-bottom:1px solid rgba(226,192,141,.14);padding:6px 0}
             .cellFacts{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;border-left:1px solid rgba(226,192,141,.14)!important}
@@ -168,6 +170,9 @@ final class BatteryWindowStyle {
             .rangeSelect button{border-radius:999px!important}
             .rangeSelect button.active{background:#e2c08d!important;color:#141110!important}
             .chartAxis{fill:#9a9184!important;font-size:18px!important}
+            /* Champagne accent and amber warn are too close on the chart: SOC goes ivory, kW out stays amber. */
+            .chartSoc{stroke:#f4efe7!important;stroke-width:3!important}i.soc{background:#f4efe7!important}
+            .chartKw:not(.in){stroke:#e8a24a!important}i.kw{background:#e8a24a!important}
             .kpi strong{font-size:54px!important;font-weight:300!important}
             .savebar{background:transparent!important;border:1px solid rgba(226,192,141,.16)!important}
             .savebar .setSave{background:#e2c08d!important;color:#141110!important}

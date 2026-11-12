@@ -61,7 +61,7 @@ final class BatteryWebPages {
          .append("<rect class='sysNode' x='900' y='132' width='358' height='156' rx='12'/><text class='sysTitle' x='914' y='158'><tspan id='flowChargerLabel'>Idle</tspan><tspan id='loadTotal'></tspan></text>");
         String[][] loads = {{"Motor", "loadMotorW", "loadMotorBar"}, {"Cabin climate", "loadCabinW", "loadCabinBar"}, {"Battery thermal", "loadBattThermW", "loadBattThermBar"}, {"Other", "loadOtherW", "loadOtherBar"}};
         for (int i = 0; i < loads.length; i++) {
-            int y = 186 + i * 26;
+            int y = 180 + i * 30; // bar sits at y+7..y+11; next label cap starts ~y+17
             s.append("<text class='sysLab' x='914' y='").append(y).append("'>").append(loads[i][0]).append("</text><text id='").append(loads[i][1]).append("' class='sysVal' x='1244' y='").append(y).append("' text-anchor='end'>--</text>")
              .append("<rect class='sysTrack' x='914' y='").append(y + 7).append("' width='330' height='4' rx='2'/><rect id='").append(loads[i][2]).append("' class='sysBar' x='914' y='").append(y + 7).append("' width='0' height='4' rx='2'/>");
         }
