@@ -146,6 +146,6 @@
 
 Car install, push and release need the owner's approval (AGENTS.md).
 
-## Open question for the owner (does not block Tasks 1-3)
+## SendAllPropertyValuesToStream (resolved 2026-11-13)
 
-`VehiclePropertyObserver` calls `SendAllPropertyValuesToStream` on every connect (inherited from CF). The HUD notes say not to use it because "it writes car state"; the basis of that note is not recorded. The scanner needs VHAL values; without SendAll the stream only pushes changes. Decide before Task 4: keep SendAll (status quo), or drop it and fill the scan from values that arrive over time.
+Disassembly of `libvenus-vehicle-server-1.5.43.so` and `libvenus-vehicle-scheduler-1.5.43.so` (pulled read-only from the car): `SendAllPropertyValuesToStream` -> `IVehicleServer::triggerSendVehiclePropertyValue` -> `PropValueStore::startReport`, which sets a flag and wakes the report thread to re-push stored values. No `writeValue`, `onSetProperty` or `simulateSetProperty` on that path. It does not write car state. Side effect: the resend goes to every stream client. Keep the existing call; the scanner uses the values it already brings in.
