@@ -76,10 +76,37 @@ on other Geely/ECARX models, and the owner can switch between saved models.
   profile ID stored in settings. Export writes to Downloads; import uses the
   system file picker.
 - Scan results are saved as a new profile; a scan never edits the built-in.
-- `signal_config.json` exact schema is not documented here: the builder
-  pulls one from the car (read-only, adb, owner approval) before writing
-  the parser, and keeps a trimmed copy as a test fixture with no private
-  data.
+- Test fixture: `battery/src/test/resources/apvp/signal_config_264133_trimmed.json`
+  (44 entries cut from the car's file; firmware config only, no personal data).
+
+## Findings from the car (EX5, build 264133, pulled read-only 2026-11-13)
+
+- One file: `/vendor/etc/transfers/libapvp/p145_j1/signal_config.json`,
+  2.4 MB, a JSON array of 3218 entries. Entry shape:
+  `{"id":{"name":"HvBattUDc","value":308282804},"module":"BECM",
+  "readOnly":true,"valueType":6291456,"notifyMode":0,"description":"",
+  "enumDefine"?:{name,items[{name,value}]},"structDefine"?:{name,fields[]}}`.
+  The directory name (`p145_j1`) is a platform code: glob `*`, do not
+  hardcode it.
+- valueType: 4194304 int (2702), 6291456 float (176), 7340032 struct (293),
+  4259840 (47, likely int array).
+- All 39 current APVP names resolve by name. IDs match the fw1.3 shifts
+  already in the notes (e.g. HvBattUDc 308282804).
+- `enumDefine` carries state labels (e.g. DCChrgSt: Idle, Prestart,
+  Charging, fault codes). The scan stores them so enum decoding can follow
+  the car instead of hardcoded tables (builder may defer this).
+- VHAL IDs are not in this file. Of the VHAL roles, `0x11600309`
+  (EV_BATTERY_LEVEL) and `291504904` = `0x11600308` (RANGE_REMAINING) are
+  standard AOSP. Only three are vendor: SOC `0x2160730E`, displayed SOC
+  `0x21608057`, battery temperature `0x21607653`. Each has an APVP twin
+  found by name: `HvBattSoc`, `DispHvBattLvlOfChrg`, `HvBattTAvg`. Cell
+  max/min (`0x126005BD`/`0x126005BF`) have twins `CellUMax`/`CellUMin`.
+  So a scan resolves every role by name or AOSP standard; manual
+  confirmation is needed only for the three vendor VHAL IDs, and only when
+  the owner wants VHAL instead of the APVP twin.
+- No model identifier found in `CARCONFIG` (entries are named
+  `carconfig1..N`); the owner names scanned profiles. The platform dir name
+  is offered as the default name.
 
 ## Verification
 

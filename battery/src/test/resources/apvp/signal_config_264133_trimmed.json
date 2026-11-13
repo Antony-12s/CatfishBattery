@@ -1,0 +1,883 @@
+[
+ {
+  "id": {
+   "name": "PrpsnHvBattUsgOfChrgTarSOC",
+   "value": 291504192
+  },
+  "module": "ZCUD",
+  "readOnly": false,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "ChrgLidAcSts",
+   "value": 306184632
+  },
+  "module": "ZCUD",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "enumDefine": {
+   "name": "DoorSts2",
+   "items": [
+    {
+     "name": "Ukwn ",
+     "value": 0
+    },
+    {
+     "name": "Opend ",
+     "value": 1
+    },
+    {
+     "name": "Clsd ",
+     "value": 2
+    }
+   ]
+  },
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "ChrgLidDCorAcDcSts",
+   "value": 306184633
+  },
+  "module": "ZCUD",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "enumDefine": {
+   "name": "DoorSts2",
+   "items": [
+    {
+     "name": "Ukwn ",
+     "value": 0
+    },
+    {
+     "name": "Opend ",
+     "value": 1
+    },
+    {
+     "name": "Clsd ",
+     "value": 2
+    }
+   ]
+  },
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "HvBattThermPwrCns",
+   "value": 306184674
+  },
+  "module": "ZCUD",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "HvCabinThermPwrCns",
+   "value": 306184675
+  },
+  "module": "ZCUD",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "HvConvPwrAct",
+   "value": 306184676
+  },
+  "module": "ZCUD",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "IsgIDc",
+   "value": 308281832
+  },
+  "module": "ZCUD",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "TotDrvPwrAct",
+   "value": 306184741
+  },
+  "module": "ZCUD",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "VehBattUSysU",
+   "value": 308282129
+  },
+  "module": "ZCUD",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "BattSocRaw",
+   "value": 308282181
+  },
+  "module": "ZCUD",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "BattCpEstimdRaw",
+   "value": 306185030
+  },
+  "module": "ZCUD",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "DCChaPwrAct",
+   "value": 308282796
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "DCChrgSt",
+   "value": 306185645
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "enumDefine": {
+   "name": "DCChrgrSts",
+   "items": [
+    {
+     "name": "Idle ",
+     "value": 0
+    },
+    {
+     "name": "Prestart ",
+     "value": 1
+    },
+    {
+     "name": "Charging ",
+     "value": 2
+    },
+    {
+     "name": "DCChrgnFltVehSide ",
+     "value": 3
+    },
+    {
+     "name": "DCChrgnFltChrgrSideTempFlt ",
+     "value": 4
+    },
+    {
+     "name": "DCChrgnFltChrgrSideConnectFlt ",
+     "value": 5
+    },
+    {
+     "name": "DCChrgnFltChrgrSideOtherFlt ",
+     "value": 6
+    },
+    {
+     "name": "DCChrgnFltChrgrSideEmgyFlt ",
+     "value": 7
+    },
+    {
+     "name": "DCChrgnFltChrgrSideComFlt ",
+     "value": 8
+    },
+    {
+     "name": "Bookcharging ",
+     "value": 9
+    },
+    {
+     "name": "Shuntdown ",
+     "value": 10
+    },
+    {
+     "name": "Heating ",
+     "value": 11
+    },
+    {
+     "name": "Supercharging ",
+     "value": 12
+    },
+    {
+     "name": "SuperchargingEnd ",
+     "value": 13
+    }
+   ]
+  },
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "DCChrgnHndlSts",
+   "value": 306185646
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "enumDefine": {
+   "name": "OnBdChrgrHndlSts",
+   "items": [
+    {
+     "name": "Disconnected ",
+     "value": 0
+    },
+    {
+     "name": "ConnectedWithoutPower ",
+     "value": 1
+    },
+    {
+     "name": "PowerAvailableButNotActivated ",
+     "value": 2
+    },
+    {
+     "name": "ConnectedWithPower ",
+     "value": 3
+    },
+    {
+     "name": "Init ",
+     "value": 4
+    },
+    {
+     "name": "Fault ",
+     "value": 5
+    }
+   ]
+  },
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "HvBattCap",
+   "value": 308282799
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "HvBattChrgnTiEstimd",
+   "value": 306185648
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "HvBattIDc1",
+   "value": 308282802
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "HvBattUDc",
+   "value": 308282804
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "TotSingleChrgEgy",
+   "value": 308282807
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "HvSysRlyStsHvSysRlySts",
+   "value": 306185658
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "enumDefine": {
+   "name": "HvActvnSts",
+   "items": [
+    {
+     "name": "Open ",
+     "value": 0
+    },
+    {
+     "name": "Clsd ",
+     "value": 1
+    },
+    {
+     "name": "KeepSt ",
+     "value": 2
+    },
+    {
+     "name": "OpenAndReqActvDcha ",
+     "value": 3
+    }
+   ]
+  },
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "HvBattSoc",
+   "value": 308282811
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "CellUMax",
+   "value": 308282814
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "CellUMin",
+   "value": 308282816
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "HvBattTAvg",
+   "value": 308282837
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "HvBattTMax",
+   "value": 308282838
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "HvBattTMin",
+   "value": 308282839
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "HvBattEgyAvlDcha1",
+   "value": 306185688
+  },
+  "module": "BECM",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "DcDcActvd",
+   "value": 306185791
+  },
+  "module": "CDD",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "enumDefine": {
+   "name": "DcDcActvd",
+   "items": [
+    {
+     "name": "NoConversionToLVSide ",
+     "value": 0
+    },
+    {
+     "name": "ConversionToLVSide ",
+     "value": 1
+    }
+   ]
+  },
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "DchaIAct",
+   "value": 308282945
+  },
+  "module": "CDD",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "DchaUAct",
+   "value": 308282947
+  },
+  "module": "CDD",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "IDcDcActHiSide",
+   "value": 308282948
+  },
+  "module": "CDD",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "OnBdChrgrHndlSts1",
+   "value": 306185798
+  },
+  "module": "CDD",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "enumDefine": {
+   "name": "OnBdChrgrHndlSts1",
+   "items": [
+    {
+     "name": "Disconnected ",
+     "value": 0
+    },
+    {
+     "name": "ConnectedWithoutPower ",
+     "value": 1
+    },
+    {
+     "name": "PowerAvailableButNotActivated ",
+     "value": 2
+    },
+    {
+     "name": "ConnectedWithPower ",
+     "value": 3
+    },
+    {
+     "name": "DischargeConnectwithoutpowerincar ",
+     "value": 4
+    },
+    {
+     "name": "DischargeConnectwithoutpoweroutcar ",
+     "value": 5
+    },
+    {
+     "name": "DischargeConnectwithpowerincar ",
+     "value": 6
+    },
+    {
+     "name": "DischargeConnectwithpoweroutcar ",
+     "value": 7
+    },
+    {
+     "name": "Init ",
+     "value": 8
+    },
+    {
+     "name": "Fault ",
+     "value": 9
+    },
+    {
+     "name": "NotCompleteConnnected ",
+     "value": 10
+    },
+    {
+     "name": "Reserved0 ",
+     "value": 11
+    },
+    {
+     "name": "Reserved1 ",
+     "value": 12
+    },
+    {
+     "name": "Reserved2 ",
+     "value": 13
+    }
+   ]
+  },
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "OnBdChrgrIAct",
+   "value": 308282951
+  },
+  "module": "CDD",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "OnBdChrgrSt",
+   "value": 306185800
+  },
+  "module": "CDD",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "enumDefine": {
+   "name": "ChrgrSts1",
+   "items": [
+    {
+     "name": "Idle ",
+     "value": 0
+    },
+    {
+     "name": "PreStrt ",
+     "value": 1
+    },
+    {
+     "name": "Chrgn ",
+     "value": 2
+    },
+    {
+     "name": "Alrm ",
+     "value": 3
+    },
+    {
+     "name": "Srv ",
+     "value": 4
+    },
+    {
+     "name": "Diagc ",
+     "value": 5
+    },
+    {
+     "name": "Boot ",
+     "value": 6
+    },
+    {
+     "name": "Rstrt ",
+     "value": 7
+    },
+    {
+     "name": "DisChrgn ",
+     "value": 8
+    },
+    {
+     "name": "BookChrgn ",
+     "value": 9
+    },
+    {
+     "name": "Shutdown ",
+     "value": 10
+    },
+    {
+     "name": "Heating ",
+     "value": 11
+    },
+    {
+     "name": "Cooling ",
+     "value": 12
+    }
+   ]
+  },
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "OnBdChrgrUAct",
+   "value": 308282953
+  },
+  "module": "CDD",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "IDcDcActLoSideIDcDcActLoSide",
+   "value": 308282959
+  },
+  "module": "CDD",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "DischrgPwrExceedWarn",
+   "value": 306185808
+  },
+  "module": "CDD",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "enumDefine": {
+   "name": "Normalwarning",
+   "items": [
+    {
+     "name": "Normal ",
+     "value": 0
+    },
+    {
+     "name": "Warning ",
+     "value": 1
+    }
+   ]
+  },
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "DischrgPwrExceedFlt",
+   "value": 306185809
+  },
+  "module": "CDD",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "enumDefine": {
+   "name": "DischrgPwrExceedFlt",
+   "items": [
+    {
+     "name": "Normal ",
+     "value": 0
+    },
+    {
+     "name": "IntrDchaFlt ",
+     "value": 1
+    },
+    {
+     "name": "V2LDchaFlt ",
+     "value": 2
+    },
+    {
+     "name": "V2VDchaFlt ",
+     "value": 3
+    },
+    {
+     "name": "DchaFlt ",
+     "value": 4
+    },
+    {
+     "name": "Reserved1 ",
+     "value": 5
+    },
+    {
+     "name": "Reserved2 ",
+     "value": 6
+    },
+    {
+     "name": "Reserved3 ",
+     "value": 7
+    }
+   ]
+  },
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "DispHvBattLvlOfChrg",
+   "value": 308282965
+  },
+  "module": "ECM",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "RemnTiOfDrvChrg",
+   "value": 308282988
+  },
+  "module": "ECM",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "IsgUDc",
+   "value": 308282992
+  },
+  "module": "XCU",
+  "readOnly": true,
+  "valueType": 6291456,
+  "notifyMode": 0,
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "HvBattFullChrgCaution",
+   "value": 306185844
+  },
+  "module": "XCU",
+  "readOnly": true,
+  "valueType": 4194304,
+  "notifyMode": 0,
+  "enumDefine": {
+   "name": "OnOff1",
+   "items": [
+    {
+     "name": "Off ",
+     "value": 0
+    },
+    {
+     "name": "On ",
+     "value": 1
+    }
+   ]
+  },
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "PA_HvBattCellTinfo_Res",
+   "value": 309332908
+  },
+  "module": "HvBattCellTinfo",
+  "readOnly": true,
+  "valueType": 7340032,
+  "notifyMode": 0,
+  "structDefine": {
+   "name": "PAUInt8ArrayFuncType6",
+   "fields": [
+    {
+     "name": "availability",
+     "arrayLen": 0,
+     "type": 4,
+     "desc": ""
+    },
+    {
+     "name": "data",
+     "arrayLen": 6,
+     "type": 0,
+     "desc": ""
+    },
+    {
+     "name": "format",
+     "arrayLen": 0,
+     "type": 4,
+     "desc": ""
+    },
+    {
+     "name": "status",
+     "arrayLen": 0,
+     "type": 4,
+     "desc": ""
+    }
+   ]
+  },
+  "description": ""
+ },
+ {
+  "id": {
+   "name": "PA_HvBattCellUIInfo_Res",
+   "value": 309332910
+  },
+  "module": "HvBattCellUIInfo",
+  "readOnly": true,
+  "valueType": 7340032,
+  "notifyMode": 0,
+  "structDefine": {
+   "name": "PAUInt8ArrayFuncType24",
+   "fields": [
+    {
+     "name": "availability",
+     "arrayLen": 0,
+     "type": 4,
+     "desc": ""
+    },
+    {
+     "name": "data",
+     "arrayLen": 24,
+     "type": 0,
+     "desc": ""
+    },
+    {
+     "name": "format",
+     "arrayLen": 0,
+     "type": 4,
+     "desc": ""
+    },
+    {
+     "name": "status",
+     "arrayLen": 0,
+     "type": 4,
+     "desc": ""
+    }
+   ]
+  },
+  "description": ""
+ }
+]
