@@ -43,3 +43,24 @@ change another emulator, clear app data, or write back to the source AVD.
 Inspect every resulting screenshot as well as the automated checks. SVG
 aspect and viewport bounds do not prove text contrast, populated-history
 readability, real charge logging, or head-unit STR survival.
+
+## Battery-health logger (canspi, read-only)
+
+Records the head unit's bigdata `canspi` snapshot once a minute so SOH
+candidates (`HvBattSOCE`, `HvBattEgyCdn`, `HvBattPwrCdn`) can be compared with
+SOC across a full charge. It runs as root on the car over adb, needs no APK
+install, and only subscribes (CONNECT, SUBSCRIBE, DISCONNECT). It never
+publishes to the broker.
+
+```sh
+battery/tools/canspi-log.sh start 60 1440   # every 60 s, stop after 1440 captures
+battery/tools/canspi-log.sh status
+battery/tools/canspi-log.sh stop
+battery/tools/canspi-log.sh pull            # out/canspi-log/<time>/canspi.csv
+```
+
+The loop lives in `/data/local/tmp`, so it stops at the next head-unit sleep or
+reboot. Run `status` after the car wakes. Captures are private vehicle data:
+`out/` stays out of git. Offline check: the loop and CSV export were run
+against a strict local fake broker that replays real snapshots. They have not
+yet run on the car (`toybox nc` behaviour is untested).

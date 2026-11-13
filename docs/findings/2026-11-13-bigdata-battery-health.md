@@ -76,6 +76,20 @@ DBC frames found, decoded values physically plausible.
 | PropulsionCAN.0x315.HvBattTAvg/TMax/TMin | 32.4 / 33 / 32 degC | |
 | ZCU_CANFD2.0x491.BattRRaw | 5.0 mOhm | 12 V battery, not HV |
 
+## SOH status
+
+No signal on this car is confirmed as SOH. Candidates to verify with a full
+charge log (`battery/tools/canspi-log.sh`): `HvBattSOCE` (92 %, not SOC),
+`HvBattEgyCdn` (96.5 %). A value that stays flat while SOC moves is SOH-like.
+`HvBattCap` (162.5 Ah, about 60 kWh at ~370 V) looks like rated capacity.
+`HvBattEgyAvlDcha1` is usable energy, so it cannot give SOH by itself.
+
+External reference, not verified on this car: the open-source
+`aciseau/geely-ex5-obd-mqtt-gateway` reads SOH over OBD from the BECM
+(UDS ReadDataByIdentifier 0x22, DID `EE06`, raw u16 / 50 = %) through an
+ELM327 adapter. That is a dongle on the diagnostic port, not the head unit.
+It gives a reference value to compare the candidates against.
+
 ## Open risks before any app use
 
 - Whether an untrusted app UID can connect to 127.0.0.1:1883 is untested.
