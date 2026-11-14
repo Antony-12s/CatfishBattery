@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# Runs on the head unit as root (pushed and started by canspi-log.sh).
+# Runs on the head unit as the adb shell user; root is not needed (pushed and started by canspi-log.sh).
 # Every INTERVAL seconds it subscribes to the local nanomq "canspi" topic for about one
 # second and keeps the raw MQTT bytes, up to MAX_FILES captures.
 # Subscribe-only: the only packets sent are CONNECT, SUBSCRIBE and DISCONNECT. Never publish:

@@ -48,7 +48,7 @@ readability, real charge logging, or head-unit STR survival.
 
 Records the head unit's bigdata `canspi` snapshot once a minute so SOH
 candidates (`HvBattSOCE`, `HvBattEgyCdn`, `HvBattPwrCdn`) can be compared with
-SOC across a full charge. It runs as root on the car over adb, needs no APK
+SOC across a full charge. It runs as the adb shell user (no root) on the car, needs no APK
 install, and only subscribes (CONNECT, SUBSCRIBE, DISCONNECT). It never
 publishes to the broker.
 

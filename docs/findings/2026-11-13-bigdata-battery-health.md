@@ -90,9 +90,17 @@ External reference, not verified on this car: the open-source
 ELM327 adapter. That is a dongle on the diagnostic port, not the head unit.
 It gives a reference value to compare the candidates against.
 
+First on-car logger run (2026-11-14, parked, 9 captures over 3 min):
+`HvBattSOCE` 92 % and `HvBattEgyCdn` 96.5 % read the same as on 2026-11-13,
+while SOC moved from 74.7 % to 71.3 %. That fits SOH but a 3.4 % SOC change
+is too small to prove it. A full charge log is still needed.
+
 ## Open risks before any app use
 
-- Whether an untrusted app UID can connect to 127.0.0.1:1883 is untested.
+- The adb `shell` UID (2000, not root) connects to 127.0.0.1:1883 and
+  receives `canspi` (verified on the car 2026-11-14 after a reboot left adbd
+  unrooted). An untrusted app UID is still untested (SELinux and the INTERNET
+  permission may differ).
 - The broker accepts anonymous publish. The app must subscribe only and
   never publish (rules, ctrl and upload topics live on the same broker).
 - Topic names carry the VIN. Never log or export them.
