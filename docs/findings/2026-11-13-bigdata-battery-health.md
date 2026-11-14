@@ -117,6 +117,21 @@ The APK's generic ECU table for Geely SPA/CMA does list `1DD01635` and
 OBC/DCDC. To learn the exact SOH request Car Scanner sends, capture its traffic
 from our own phone (Bluetooth HCI snoop log) while it reads SOH.
 
+## SOH DID from Geely GLDS
+
+A GLDS (Geely dealer diagnostic tool) screenshot of another P145-J1 car (same
+platform code as this car's `libapvp/p145_j1`, model year 2026) shows:
+`High Voltage Battery Health (SOH) - BECM`, DID `496D`, value 98.5 %.
+So the dealer SOH is UDS ReadDataByIdentifier `22 49 6D` on the BECM. The OBD
+gateway project also polls `496D` but does not decode it; its "SOH" is `EE06`.
+The raw byte length and scaling of `496D` are unknown. One raw read from this
+car (any scale that gives a 0-100 % value) settles it. Same screenshot lists
+"DCDC module (CDD)", matching Car Scanner's `CDD 1DD01650` entry.
+
+Reading it from the head unit is not possible today: over the Wi-Fi DoIP path
+only the DHU answers, and the BECM needs the OBD port (ELM327 on 29-bit CAN,
+or a DoIP Ethernet adapter, which is what GLDS uses).
+
 ## Open risks before any app use
 
 - The adb `shell` UID (2000, not root) connects to 127.0.0.1:1883 and
