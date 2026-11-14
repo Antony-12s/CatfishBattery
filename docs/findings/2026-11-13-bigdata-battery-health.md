@@ -108,6 +108,15 @@ It is 90.8 % of the 60.22 kWh rating, but the rating's gross/usable basis and
 the BMS reserve are unknown, so this is not an SOH. Logged over months, it
 gives a capacity trend without OBD.
 
+Car Scanner ELM OBD2 2.2.42 (APK signer `CN=0vZ`, static analysis only):
+the APK ships no Geely/EX5 PID set. Brand PIDs come from a downloaded,
+encrypted profile database (`profiles7.db` from `node4/node5.carscanner.info`,
+`EncryptedProfilePIDsCollection`). Breaking that protection is out of scope.
+The APK's generic ECU table for Geely SPA/CMA does list `1DD01635` and
+`1DD01650`, the same request IDs the OBD gateway project uses for BECM and
+OBC/DCDC. To learn the exact SOH request Car Scanner sends, capture its traffic
+from our own phone (Bluetooth HCI snoop log) while it reads SOH.
+
 ## Open risks before any app use
 
 - The adb `shell` UID (2000, not root) connects to 127.0.0.1:1883 and
