@@ -95,6 +95,19 @@ First on-car logger run (2026-11-14, parked, 9 captures over 3 min):
 while SOC moved from 74.7 % to 71.3 %. That fits SOH but a 3.4 % SOC change
 is too small to prove it. A full charge log is still needed.
 
+Second reading (2026-11-14, after ~3 h of driving, SOC 55.9 %): `HvBattSOCE`
+92 %, `HvBattEgyCdn` 96.5 % and `HvBattPwrCdn` 4 % are still unchanged across
+an 18.8-point SOC swing, so none of them tracks SOC. They behave like SOH or
+like a static value; only an OBD reference or a months-long trend can tell.
+No VHAL property (633 read) and no APVP name matches any SOH candidate.
+
+BMS usable-energy estimate: `HvBattEgyAvlDcha1` + `HvBattEgyAvlChrg1`
+(0x298, energy still chargeable) = 54,680 Wh at SOC 74.7 % and 54,780 Wh at
+SOC 55.9 %. The sum is stable, so it is the BMS's current full-window energy.
+It is 90.8 % of the 60.22 kWh rating, but the rating's gross/usable basis and
+the BMS reserve are unknown, so this is not an SOH. Logged over months, it
+gives a capacity trend without OBD.
+
 ## Open risks before any app use
 
 - The adb `shell` UID (2000, not root) connects to 127.0.0.1:1883 and
