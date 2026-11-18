@@ -124,7 +124,7 @@ final class StatusPage extends FrameLayout {
         LinearLayout schem = new LinearLayout(context);
         schem.setOrientation(LinearLayout.VERTICAL);
         FrameLayout wrap = new FrameLayout(context);
-        wrap.setBackground(s.panel());
+        // no panel here: PackSchematicView paints its own themed panel; a second one drew a double frame
         wrap.setClipToOutline(true);
         wrap.setContentDescription(CAPTION);
         // the flow dots must sit exactly over the drawing: both fill the same FrameLayout and share its 1180x470 mapping
