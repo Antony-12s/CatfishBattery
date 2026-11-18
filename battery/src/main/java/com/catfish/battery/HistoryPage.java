@@ -84,6 +84,13 @@ final class HistoryPage extends FrameLayout {
         hint.setPadding(ui.dp(2), ui.dp(18), 0, 0);
         ChargingUi.set(hint, "Tap a charge to pick which charger it was; a dashed chip is the default for its kind.");
         card.addView(hint, ChargingUi.fillWidth());
+        TextView caption = ui.text(20, ui.muted2, 400);
+        caption.setLineSpacing(0, 1.4f);
+        caption.setPadding(ui.dp(2), ui.dp(8), 0, 0);
+        ChargingUi.set(caption, "A charge is a charger plugged in with energy going into the pack. One made while the head "
+                + "unit slept shows the sleep and wake times, not the charge itself. Cost adds the charging loss at the "
+                + "charger's price from Settings.");
+        card.addView(caption, ChargingUi.fillWidth());
 
         // the charger picker, over the card
         picker = new FrameLayout(context);
