@@ -50,25 +50,31 @@ final class SohRecorder {
         final long ts;
         final double pct;
         final String source;
-        final double km; // odometer when recorded, NaN when unknown (rows from before 2026-11-18)
+        final double km;         // odometer when recorded, NaN when unknown (rows from before 2026-11-18)
+        final double cellDiffMv; // highest minus lowest cell when recorded, NaN when unknown
 
-        Entry(long ts, double pct) { this(ts, pct, CANSPI, Double.NaN); }
+        Entry(long ts, double pct) { this(ts, pct, CANSPI, Double.NaN, Double.NaN); }
 
-        Entry(long ts, double pct, String source) { this(ts, pct, source, Double.NaN); }
+        Entry(long ts, double pct, String source) { this(ts, pct, source, Double.NaN, Double.NaN); }
 
-        Entry(long ts, double pct, String source, double km) {
+        Entry(long ts, double pct, String source, double km, double cellDiffMv) {
             this.ts = ts;
             this.pct = pct;
             this.source = source;
             this.km = km;
+            this.cellDiffMv = cellDiffMv;
         }
     }
 
     private final File file;
     private final Supplier<Integer> gear;
     private final Callable<Double> fetch;
-    static final String HEADER = "ts,soh_pct,source,odometer_km";
+    static final String HEADER = "ts,soh_pct,source,odometer_km,cell_diff_mv";
     private volatile Supplier<Double> odometer = () -> Double.NaN;
+    private volatile Supplier<Double> cellDiff = () -> Double.NaN;
+
+    /** Cell spread in mV (from the read-only cell stream) stored next to every SOH row, for SOH against V diff. */
+    void setCellDiff(Supplier<Double> cellDiff) { this.cellDiff = cellDiff; }
 
     /** Odometer in km (read only) stored next to every SOH row, for SOH per distance. */
     void setOdometer(Supplier<Double> odometer) { this.odometer = odometer; }
@@ -209,7 +215,9 @@ final class SohRecorder {
     private void append(long now, double pct, String source) {
         Double read = odometer.get();
         double km = read != null && read >= 0 && read < 2_000_000 ? read : Double.NaN;
-        entries.add(new Entry(now, pct, source, km));
+        Double spread = cellDiff.get();
+        double diff = spread != null && spread >= 0 && spread < 1000 ? spread : Double.NaN;
+        entries.add(new Entry(now, pct, source, km, diff));
         try {
             if (!file.exists()) {
                 File parent = file.getParentFile();
@@ -223,9 +231,14 @@ final class SohRecorder {
         }
     }
 
+    private static double optional(String[] parts, int i) {
+        return parts.length > i && !parts[i].trim().isEmpty() ? Double.parseDouble(parts[i].trim()) : Double.NaN;
+    }
+
     private static String row(Entry e) {
-        return String.format(Locale.ROOT, "%d,%.2f,%s,%s", e.ts, e.pct, e.source,
-                Double.isNaN(e.km) ? "" : String.format(Locale.ROOT, "%.0f", e.km));
+        return String.format(Locale.ROOT, "%d,%.2f,%s,%s,%s", e.ts, e.pct, e.source,
+                Double.isNaN(e.km) ? "" : String.format(Locale.ROOT, "%.0f", e.km),
+                Double.isNaN(e.cellDiffMv) ? "" : String.format(Locale.ROOT, "%.0f", e.cellDiffMv));
     }
 
     /** Logs only when the outcome changes, so a long park does not flood logcat. */
@@ -266,11 +279,11 @@ final class SohRecorder {
             List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
             for (String line : lines) {
                 String[] parts = line.split(",", -1);
-                if (parts.length < 2 || parts.length > 4) continue;
+                if (parts.length < 2 || parts.length > 5) continue;
                 try {
                     String source = parts.length >= 3 && BECM.equals(parts[2].trim()) ? BECM : CANSPI;
-                    double km = parts.length == 4 && !parts[3].trim().isEmpty() ? Double.parseDouble(parts[3].trim()) : Double.NaN;
-                    entries.add(new Entry(Long.parseLong(parts[0].trim()), Double.parseDouble(parts[1].trim()), source, km));
+                    entries.add(new Entry(Long.parseLong(parts[0].trim()), Double.parseDouble(parts[1].trim()), source,
+                            optional(parts, 3), optional(parts, 4)));
                 } catch (NumberFormatException skip) { } // header or a damaged line
             }
             if (!lines.isEmpty() && !HEADER.equals(lines.get(0))) upgrade(); // older header: rewrite, rows kept

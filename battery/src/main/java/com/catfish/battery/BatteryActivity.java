@@ -19,14 +19,14 @@ import java.util.concurrent.TimeUnit;
 import org.json.JSONObject;
 
 /**
- * The battery pages (Status / Charging / History / Settings) as native views under the native tab bar. Status gets
+ * The battery pages (Status / Charging / History / Health / Settings) as native views under the native tab bar. Status gets
  * BatteryDataHub.dataJson() once a second while shown, read on a background thread; Charging and History refresh every
  * 30 s and Settings when shown, as the WebView pages polled. Day/night changes recreate the activity (resolved colours
  * do not update on existing views); the selected page survives the recreate.
  */
 public final class BatteryActivity extends Activity {
     private static final String TAG = "CatfishBattery";
-    private static final String[] PAGES = { "status", "charging", "history", "settings" };
+    private static final String[] PAGES = { "status", "charging", "history", "health", "settings" };
     private static final int SLOW_REFRESH_S = 30;
 
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -35,6 +35,7 @@ public final class BatteryActivity extends Activity {
     private StatusPage status;
     private ChargingPage charging;
     private HistoryPage history;
+    private HealthPage health;
     private SettingsPage settings;
     private volatile String page = "status";
     private volatile boolean resumed;
@@ -49,12 +50,14 @@ public final class BatteryActivity extends Activity {
         setContentView(R.layout.activity_battery);
         if (state != null) page = state.getString("page", page);
         tabs = new Button[] { findViewById(R.id.battery_tab_status), findViewById(R.id.battery_tab_charging),
-                findViewById(R.id.battery_tab_history), findViewById(R.id.battery_tab_settings) };
+                findViewById(R.id.battery_tab_history), findViewById(R.id.battery_tab_health),
+                findViewById(R.id.battery_tab_settings) };
         status = new StatusPage(this);
         charging = new ChargingPage(this);
         history = new HistoryPage(this);
+        health = new HealthPage(this);
         settings = new SettingsPage(this);
-        pages = new View[] { status, charging, history, settings };
+        pages = new View[] { status, charging, history, health, settings };
         FrameLayout slot = findViewById(R.id.battery_page_slot);
         for (View p : pages) {
             p.setVisibility(View.GONE);
@@ -127,6 +130,7 @@ public final class BatteryActivity extends Activity {
         switch (name) {
             case "charging": charging.setVisibleNow(visible); if (visible) charging.refresh(); break;
             case "history": history.setVisibleNow(visible); if (visible) history.refresh(); break;
+            case "health": health.setVisibleNow(visible); if (visible) health.refresh(); break;
             case "settings": settings.setVisibleNow(visible); if (visible) settings.refresh(); break;
             default: status.setVisibleNow(visible); break;
         }

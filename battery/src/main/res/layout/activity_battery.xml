@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The Custom Profiles Battery category as its own screen: four tabs over the battery pages. -->
+<!-- The Custom Profiles Battery category as its own screen: five tabs over the battery pages. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -51,6 +51,7 @@
             <Button android:id="@+id/battery_tab_status" style="@style/Tab" android:text="@string/battery_tab_status" />
             <Button android:id="@+id/battery_tab_charging" style="@style/Tab" android:text="@string/battery_tab_charging" />
             <Button android:id="@+id/battery_tab_history" style="@style/Tab" android:text="@string/battery_tab_history" />
+            <Button android:id="@+id/battery_tab_health" style="@style/Tab" android:text="@string/battery_tab_health" />
             <Button android:id="@+id/battery_tab_settings" style="@style/Tab" android:text="@string/battery_tab_settings" android:layout_marginEnd="0dp" />
         </LinearLayout>
     </LinearLayout>

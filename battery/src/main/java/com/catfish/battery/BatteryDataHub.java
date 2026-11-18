@@ -33,6 +33,12 @@ final class BatteryDataHub {
             Float km = VehiclePropertyManager.floatCache().get(0x11600204);
             return km == null ? Double.NaN : km.doubleValue();
         });
+        VehicleBatteryReader cellsFrom = reader;
+        soh.setCellDiff(() -> {
+            VehicleBatteryReader.Snapshot s = cellsFrom.read();
+            Long max = BatteryLogger.cellMv(s.cells, s.cellMaxV, true), min = BatteryLogger.cellMv(s.cells, s.cellMinV, false);
+            return max == null || min == null ? Double.NaN : (double) (max - min);
+        });
         soh.start();
     }
 
@@ -73,6 +79,12 @@ final class BatteryDataHub {
     static synchronized VehicleBatteryReader reader() { return reader; }
     static synchronized BatteryLogger logger() { return logger; }
     static synchronized SohRecorder soh() { return soh; }
+
+    /** SOH history for the Health page, oldest first; empty when nothing holds the hub. */
+    static java.util.List<SohRecorder.Entry> sohEntries() {
+        SohRecorder s = soh();
+        return s == null ? new java.util.ArrayList<>() : s.entries();
+    }
 
     /** JSON for the pages' 1 s poll, with the saved energy totals; an offline snapshot when nothing holds the hub. */
     static String dataJson() {

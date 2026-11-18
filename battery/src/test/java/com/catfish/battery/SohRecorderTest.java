@@ -250,12 +250,14 @@ public class SohRecorderTest {
         AtomicReference<Integer> gear = new AtomicReference<>(4);
         SohRecorder r = new SohRecorder(dir, gear::get, () -> 96.5);
         r.setOdometer(() -> 29161.0);
+        r.setCellDiff(() -> 3.0);
         r.becmTick(T0, () -> 96.44);
         assertEquals(29161.0, r.entries().get(0).km, 0);
         assertEquals(29161.0, new JSONObject(r.json()).getDouble("km"), 0);
         List<String> lines = Files.readAllLines(new File(dir, "soh.csv").toPath());
-        assertEquals("ts,soh_pct,source,odometer_km", lines.get(0));
-        assertEquals(T0 + ",96.44,becm,29161", lines.get(1));
+        assertEquals("ts,soh_pct,source,odometer_km,cell_diff_mv", lines.get(0));
+        assertEquals(T0 + ",96.44,becm,29161,3", lines.get(1));
+        assertEquals(3.0, r.entries().get(0).cellDiffMv, 0);
         assertEquals(29161.0, new SohRecorder(dir, gear::get, () -> 96.5).entries().get(0).km, 0); // reloads
 
         File old = tempDir();
@@ -271,6 +273,6 @@ public class SohRecorderTest {
         SohRecorder r = new SohRecorder(dir, () -> 4, () -> 96.5);
         r.setOdometer(() -> Double.NaN);
         r.becmTick(T0, () -> 96.44);
-        assertEquals(T0 + ",96.44,becm,", Files.readAllLines(new File(dir, "soh.csv").toPath()).get(1));
+        assertEquals(T0 + ",96.44,becm,,", Files.readAllLines(new File(dir, "soh.csv").toPath()).get(1));
     }
 }
