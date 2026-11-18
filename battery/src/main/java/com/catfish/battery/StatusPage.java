@@ -143,10 +143,12 @@ final class StatusPage extends FrameLayout {
         LinearLayout leg = new LinearLayout(context);
         legendCells = s.text(context, 20, 600, s.muted);
         legendSensors = s.text(context, 20, 600, s.muted);
+        // legend columns follow the facts groups below (3 : 3 : 4.5, 18 px gaps), so each scale sits over its group
         leg.addView(scale(context, legendCells, new String[] { "\u22642 mV", "\u22648 mV", ">8 mV" }),
-                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 3));
         leg.addView(scale(context, legendSensors, new String[] { "<35 \u00b0C", "35\u201342 \u00b0C", ">42 \u00b0C" }),
-                margins(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1), s.px(24), 0, 0, 0));
+                margins(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 3), s.px(18), 0, 0, 0));
+        leg.addView(new View(context), margins(new LinearLayout.LayoutParams(0, 0, 4.5f), s.px(18), 0, 0, 0));
         schem.addView(leg, margins(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, s.px(14), 0, 0));
         cells = new CellsView(context);
@@ -226,9 +228,11 @@ final class StatusPage extends FrameLayout {
         set(cellMax, x.cellMax);
         set(cellMin, x.cellMin);
         set(cellDelta, x.cellDelta);
-        cellDelta.setTextColor(x.deltaLevel == StatusFormat.DANGER ? s.danger : x.deltaLevel == StatusFormat.WARN ? s.warn : s.good);
+        cellDelta.setTextColor(level(x.cellDelta, x.deltaLevel));
         set(tMax, x.tempMax);
         set(tMin, x.tempMin);
+        tMax.setTextColor(level(x.tempMax, x.tempMaxLevel));
+        tMin.setTextColor(level(x.tempMin, x.tempMinLevel));
         set(tSpread, x.tempSpread);
         set(used, x.used);
         set(charged, x.charged);
@@ -247,6 +251,12 @@ final class StatusPage extends FrameLayout {
             schematic.setData(data);
             flow.setData(data);
         }
+    }
+
+    /** Band colour of a reading; a missing one ("--") stays in the plain text colour, not green. */
+    private int level(String shown, int l) {
+        if (UiFormat.MISSING.equals(shown)) return s.text;
+        return l == StatusFormat.DANGER ? s.danger : l == StatusFormat.WARN ? s.warn : s.good;
     }
 
     private void showCells(boolean on, boolean save) {

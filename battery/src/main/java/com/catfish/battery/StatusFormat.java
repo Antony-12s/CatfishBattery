@@ -35,12 +35,12 @@ final class StatusFormat {
         return UiFormat.fixed(wh / 1000, wh < 100000 ? 2 : 1, " kWh");
     }
 
-    /** Start of the totals: "8 Nov 07:05 →", or "from boot" when the logger has no start. */
+    /** Start of the totals: "since 8 Nov 07:05", or "from boot" when the logger has no start. */
     static String since(long sinceMs, TimeZone zone) {
         if (sinceMs == 0) return "from boot";
         Calendar c = Calendar.getInstance(zone, Locale.ROOT);
         c.setTimeInMillis(sinceMs);
-        return String.format(Locale.ROOT, "%d %s %02d:%02d \u2192", c.get(Calendar.DAY_OF_MONTH),
+        return String.format(Locale.ROOT, "since %d %s %02d:%02d", c.get(Calendar.DAY_OF_MONTH),
                 MONTHS[c.get(Calendar.MONTH)], c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE));
     }
 
@@ -60,6 +60,12 @@ final class StatusFormat {
     static int deltaLevel(Integer deltaMv) {
         if (deltaMv == null) return GOOD;
         return deltaMv >= 50 ? DANGER : deltaMv >= 20 ? WARN : GOOD;
+    }
+
+    /** Sensor colour, the same bands as the Sensors legend: under 35 °C good, 35-42 °C warn, above 42 °C danger. */
+    static int tempLevel(Integer celsius) {
+        if (celsius == null) return GOOD;
+        return celsius > 42 ? DANGER : celsius >= 35 ? WARN : GOOD;
     }
 
     /** Whole-number reading with its unit, "--" when missing. */

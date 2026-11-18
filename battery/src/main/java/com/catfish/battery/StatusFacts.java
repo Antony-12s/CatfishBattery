@@ -22,7 +22,7 @@ final class StatusFacts {
     }
 
     final String cellMax, cellMin, cellDelta;
-    final int deltaLevel;
+    final int deltaLevel, tempMaxLevel, tempMinLevel;
     final String tempMax, tempMin, tempSpread;
     final String used, charged, regen, cost, costNote, since;
     final String cellCount, sensorCount;
@@ -37,6 +37,8 @@ final class StatusFacts {
         deltaLevel = StatusFormat.deltaLevel(delta);
         Integer spread = tMax == null ? null : tMax - tMin;
         tempMax = StatusFormat.whole(tMax, " \u00b0C");
+        tempMaxLevel = StatusFormat.tempLevel(tMax);
+        tempMinLevel = StatusFormat.tempLevel(tMin);
         tempMin = StatusFormat.whole(tMin, " \u00b0C");
         tempSpread = StatusFormat.whole(spread, " \u00b0C");
         legendVmin = cellMin;

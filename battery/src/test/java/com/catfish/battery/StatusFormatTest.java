@@ -39,8 +39,17 @@ public class StatusFormatTest {
         Calendar c = Calendar.getInstance(utc);
         c.clear();
         c.set(2026, Calendar.NOVEMBER, 8, 7, 5);
-        assertEquals("8 Nov 07:05 \u2192", StatusFormat.since(c.getTimeInMillis(), utc));
+        assertEquals("since 8 Nov 07:05", StatusFormat.since(c.getTimeInMillis(), utc));
         assertEquals("from boot", StatusFormat.since(0, utc));
+    }
+
+    @Test
+    public void temperatureColourFollowsTheSensorLegend() {
+        assertEquals(StatusFormat.GOOD, StatusFormat.tempLevel(34));
+        assertEquals(StatusFormat.WARN, StatusFormat.tempLevel(35));   // 35-42 °C
+        assertEquals(StatusFormat.WARN, StatusFormat.tempLevel(42));
+        assertEquals(StatusFormat.DANGER, StatusFormat.tempLevel(43)); // >42 °C
+        assertEquals(StatusFormat.GOOD, StatusFormat.tempLevel(null));
     }
 
     @Test

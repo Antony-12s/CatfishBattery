@@ -102,7 +102,7 @@ public class StatusFactsTest {
         assertEquals("--", f.charged);
         assertEquals("\u0e3f2.5", f.cost);
         assertEquals("2.50 \u0e3f/kWh", f.costNote);
-        assertEquals("1 Jan 00:00 \u2192", f.since);
+        assertEquals("since 1 Jan 00:00", f.since);
     }
 
     @Test
