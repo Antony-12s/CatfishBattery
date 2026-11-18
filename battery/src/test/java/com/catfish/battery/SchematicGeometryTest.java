@@ -17,9 +17,9 @@ public class SchematicGeometryTest {
         assertEquals(865f,tall.designX(tall.x(865)),0f);
         assertEquals(341f,tall.designY(tall.y(341)),0f);
         assertArrayEquals(new float[]{764,192,930,192},SchematicGeometry.flowPath("hv"),0f);
-        assertArrayEquals(new float[]{514,358,700,358},SchematicGeometry.flowPath("dc"),0f);
-        assertArrayEquals(new float[]{980,358,1004,358},SchematicGeometry.flowPath("lv"),0f);
-        assertArrayEquals(new float[]{900,266,930,266},SchematicGeometry.flowPath("chg"),0f);
+        assertArrayEquals(new float[]{430,392,700,392},SchematicGeometry.flowPath("dc"),0f);
+        assertArrayEquals(new float[]{980,392,1004,392},SchematicGeometry.flowPath("lv"),0f);
+        assertArrayEquals(new float[]{900,274,930,274},SchematicGeometry.flowPath("chg"),0f);
     }
 
     @Test public void projectsOriginalFacesAndAllCellIds() {

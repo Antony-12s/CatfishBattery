@@ -43,9 +43,9 @@ public final class SchematicGeometry {
     public static float[] flowPath(String key) {
         return switch (key) {
             case "hv" -> new float[]{764,192, 930,192};
-            case "dc" -> new float[]{514,358, 700,358};
-            case "lv" -> new float[]{980,358, 1004,358};
-            case "chg" -> new float[]{900,266, 930,266};
+            case "dc" -> new float[]{430,392, 700,392};
+            case "lv" -> new float[]{980,392, 1004,392};
+            case "chg" -> new float[]{900,274, 930,274};
             default -> throw new IllegalArgumentException(key);
         };
     }

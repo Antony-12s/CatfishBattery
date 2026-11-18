@@ -157,9 +157,9 @@ final class PackSchematicView extends View {
     // step 1 the wide HV PACK card above the pack's rising edge, step 2 the Loads/Charging card right of the apex with
     // the inlet on its left, step 3 DC-DC and 12 V side by side under the falling edge.
     private static final float HERO_L = 790, HERO_T = 6, HERO_B = 108, RIGHT = 1280;
-    private static final float LOADS_L = 930, LOADS_T = 134, LOADS_B = 302;
-    private static final float INLET_L = 796, INLET_R = 900, INLET_T = 250, INLET_B = 282;
-    private static final float LOW_T = 316, LOW_B = 400, DC_L = 700, DC_R = 980, LV_L = 1004;
+    private static final float LOADS_L = 930, LOADS_T = 142, LOADS_B = 310;
+    private static final float INLET_L = 796, INLET_R = 900, INLET_T = 258, INLET_B = 290;
+    private static final float LOW_T = 350, LOW_B = 434, DC_L = 700, DC_R = 980, LV_L = 1004;
     private static final float SPARK_L = 1084, SPARK_R = 1266, SPARK_T = 38, SPARK_B = 84;
 
     void setTrend(SocTrend trend) {
