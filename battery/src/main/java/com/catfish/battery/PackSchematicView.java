@@ -126,8 +126,6 @@ final class PackSchematicView extends View {
         for (DrawableSensor sensor : sensors) drawSensor(canvas,sensor);
         label(canvas,"FRONT",front.x(),front.y(),12,tone(0xff8fb0e0,0xff274e78),MONO,Paint.Align.CENTER);
         drawSelection(canvas);
-        marker(canvas,data.extremes.maximum(),"▲");
-        marker(canvas,data.extremes.minimum(),"▼");
         drawTooltip(canvas);
         canvas.restore();
     }
@@ -294,18 +292,6 @@ final class PackSchematicView extends View {
         float y = r.top >= 38 ? r.top-36 : r.bottom+10;
         round(canvas,x,y,x+width,y+26,8,palette.surface2,palette.line);
         label(canvas,tip,x+10,y+18,13,palette.text,NORMAL,Paint.Align.LEFT);
-    }
-
-    private void marker(Canvas canvas,int index,String glyph) {
-        if (index < 0) return;
-        RectF top = cells[index].faceBounds[2];
-        textStyle(13,BOLD,Paint.Align.CENTER);
-        fill(0xeb080c14);
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(2.5f);
-        paint.setStrokeJoin(Paint.Join.ROUND);
-        canvas.drawText(glyph,top.centerX(),top.centerY()+4,paint);
-        label(canvas,glyph,top.centerX(),top.centerY()+4,13,0xffffffff,BOLD,Paint.Align.CENTER);
     }
 
     private int cellColor(SchematicReadings.Band band) {

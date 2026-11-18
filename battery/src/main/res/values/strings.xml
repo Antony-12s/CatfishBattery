@@ -7,7 +7,6 @@
     <string name="battery_tab_history">History</string>
     <string name="battery_tab_settings">Settings</string>
     <string name="status_pack_title">Pack</string>
-    <string name="status_pack_kicker">118 cells · 12 temperature sensors</string>
     <string name="status_legend_marks">▼ lowest · ▲ highest</string>
     <string name="battery_service_running">Logging battery and charging</string>
 </resources>

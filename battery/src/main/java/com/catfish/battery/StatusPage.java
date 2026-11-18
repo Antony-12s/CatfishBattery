@@ -27,7 +27,7 @@ import java.util.concurrent.Executors;
 import org.json.JSONObject;
 
 /**
- * Status page: the Pack card (title, live / updated badges, Schematic/Cells switch, cell and sensor counters, two-tap
+ * Status page: the Pack card (title, live badge, Schematic/Cells switch, cell over sensor counters, two-tap
  * Reset totals), the schematic with its energy-flow overlay or the Cells view, the legend, and the facts rows with the
  * energy totals. Native port of the WebView status page (BatteryWebPages renderBattery / batteryScript). The SOH badge
  * left the header: SOH is drawn in the schematic's HV PACK block (backlog 2).
@@ -50,7 +50,7 @@ final class StatusPage extends FrameLayout {
     private final StatusResetArming arming = new StatusResetArming();
     private final SharedPreferences prefs;
 
-    private final TextView liveBadge, updatedBadge, resetButton, tabSchematic, tabCells, cellCount, sensorCount;
+    private final TextView liveBadge, resetButton, tabSchematic, tabCells, cellCount, sensorCount;
     private final TextView cellMax, cellMin, cellDelta, tMax, tMin, tSpread, used, charged, regen, cost, since, costNote;
     private final TextView legendCells, legendSensors;
     private final View packWrap, legend, schematicPanel;
@@ -73,7 +73,7 @@ final class StatusPage extends FrameLayout {
         card.setPadding(s.px(28), s.px(24), s.px(28), s.px(24));
         addView(card, match());
 
-        // header: title + kicker on the left, the actions on the right
+        // header: title on the left, the actions on the right
         LinearLayout head = new LinearLayout(context);
         head.setGravity(Gravity.CENTER_VERTICAL);
         head.setMinimumHeight(s.px(76));
@@ -81,14 +81,7 @@ final class StatusPage extends FrameLayout {
         titles.setOrientation(LinearLayout.VERTICAL);
         TextView title = s.night ? s.text(context, 34, 500, s.text) : s.text(context, 32, 700, s.text);
         title.setText(R.string.status_pack_title);
-        TextView kicker = s.night ? s.text(context, 14, 600, s.accent) : s.text(context, 22, 500, s.muted);
-        kicker.setText(R.string.status_pack_kicker);
-        if (s.night) {
-            kicker.setAllCaps(true);
-            kicker.setLetterSpacing(0.24f);
-        }
         titles.addView(title);
-        titles.addView(kicker, margins(wrap(), 0, s.px(6), 0, 0));
         head.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
 
         resetButton = s.text(context, 22, 700, s.muted);
@@ -100,7 +93,6 @@ final class StatusPage extends FrameLayout {
         resetButton.setClickable(true);
         resetButton.setOnClickListener(v -> onReset());
         liveBadge = badge(context, s.good);
-        updatedBadge = badge(context, s.muted);
         LinearLayout tabs = new LinearLayout(context);
         tabs.setPadding(s.px(6), s.px(6), s.px(6), s.px(6));
         tabs.setBackground(s.night ? s.round(0, 999, StatusStyle.alpha(s.accent, 0.18f), 1) : s.round(s.bgDeep, 20, s.line, 1));
@@ -114,7 +106,17 @@ final class StatusPage extends FrameLayout {
         sensorCount = badge(context, s.accent);
         cellCount.setContentDescription("Cell voltages collected");
         sensorCount.setContentDescription("Temperature sensors seen");
-        View[] actions = { resetButton, liveBadge, updatedBadge, tabs, cellCount, sensorCount };
+        // cells over sensors, right-aligned, compact so the stack stays within the header height
+        LinearLayout counts = new LinearLayout(context);
+        counts.setOrientation(LinearLayout.VERTICAL);
+        counts.setGravity(Gravity.END);
+        for (TextView count : new TextView[]{ cellCount, sensorCount }) {
+            count.setMinHeight(s.px(36));
+            count.setPadding(s.px(16), s.px(3), s.px(16), s.px(3));
+        }
+        counts.addView(cellCount, wrap());
+        counts.addView(sensorCount, margins(wrap(), 0, s.px(6), 0, 0));
+        View[] actions = { resetButton, liveBadge, tabs, counts };
         for (int i = 0; i < actions.length; i++) head.addView(actions[i], margins(wrap(), i == 0 ? 0 : s.px(18), 0, 0, 0));
         card.addView(head, margins(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, 0, 0, s.px(20)));
@@ -212,8 +214,6 @@ final class StatusPage extends FrameLayout {
             liveBadge.setBackground(badgeBg(live, f.kind == StatusFreshness.OFFLINE && s.night));
             liveBadge.setCompoundDrawablesRelativeWithIntrinsicBounds(dot(live), null, null, null);
         }
-        set(updatedBadge, f.updated);
-        updatedBadge.setTextColor(f.updatedStale ? s.warn : s.muted);
         float alpha = f.dim ? 0.6f : 1f;
         packWrap.setAlpha(alpha);
         legend.setAlpha(alpha);
