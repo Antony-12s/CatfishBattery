@@ -44,7 +44,7 @@ final class SettingsPage extends FrameLayout {
 
     private final ChargingUi ui;
     private static final String[] SECTIONS = { "Region", "Preferences", "Chargers & prices", "Totals & reset", "Update", "About" };
-    private static final String[] ICONS = { "\u25CE", "\u2699\uFE0E", "\u26A1\uFE0E", "\u21BB", "\u2B07\uFE0E", "i" };
+    private static final String[] ICONS = { "\uD83C\uDF0F", "\u2699\uFE0E", "\u26A1\uFE0E", "\u21BB", "\u2B07\uFE0E", "i" };
 
     private final LinearLayout chargersBox, prefs, totals, region, pricesBox, update;
     private TextView chargersNote;
