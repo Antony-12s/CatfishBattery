@@ -111,10 +111,10 @@ final class FlowOverlayView extends View {
         boolean moving = animator.isStarted();
         boolean charging = (routes & (1 << FlowGeometry.CHARGER)) != 0;
         int drawn = FlowGeometry.drawn(routes);
-        for (int route = 0; route <= FlowGeometry.LINK; route++) {
+        for (int route = 0; route <= FlowGeometry.CHARGER; route++) {
             if ((drawn & (1 << route)) == 0) continue;
-            // towards the pack: regen on the pack wire, and while charging both the pack wire and the card link
-            boolean reverse = (route == FlowGeometry.HV || route == FlowGeometry.LINK) && (reverseHv || charging);
+            // towards the pack: regen and charging on the pack wire
+            boolean reverse = route == FlowGeometry.HV && (reverseHv || charging);
             paint.setColor(route == FlowGeometry.CHARGER || reverse ? palette.good : palette.accent);
             if (moving) {
                 dot(canvas, route, reverse ? 1 - phase : phase);

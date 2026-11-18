@@ -20,7 +20,6 @@ public class SchematicGeometryTest {
         assertArrayEquals(new float[]{514,358,700,358},SchematicGeometry.flowPath("dc"),0f);
         assertArrayEquals(new float[]{980,358,1004,358},SchematicGeometry.flowPath("lv"),0f);
         assertArrayEquals(new float[]{900,266,930,266},SchematicGeometry.flowPath("chg"),0f);
-        assertArrayEquals(new float[]{1105,108,1105,134},SchematicGeometry.flowPath("link"),0f);
     }
 
     @Test public void projectsOriginalFacesAndAllCellIds() {

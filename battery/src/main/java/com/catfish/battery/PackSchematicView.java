@@ -30,7 +30,7 @@ final class PackSchematicView extends View {
     private static final Typeface MONO = Typeface.create("monospace", Typeface.BOLD);
     private static final DashPathEffect DASH = new DashPathEffect(new float[]{4, 5}, 0);
     private static final String[] LOAD_NAMES = {"Motor", "Cabin climate", "Battery thermal", "Other"};
-    private static final String[] FLOW_KEYS = {"hv", "dc", "lv", "chg", "link"};
+    private static final String[] FLOW_KEYS = {"hv", "dc", "lv", "chg"};
 
     private final Shader nightPanel = new RadialGradient(0,0,1,
             new int[]{0xff16161b,0xff0d0d10,0xff09090b},new float[]{0,.6f,1},Shader.TileMode.CLAMP);
@@ -170,10 +170,10 @@ final class PackSchematicView extends View {
     private void drawSystem(Canvas canvas) {
         int dim = tone(0x80e2c08d,0xff8298af), active = tone(CHAMPAGNE,palette.accent);
         int flowColor = data.charging ? palette.good : active;
-        boolean[] enabled = {data.hvOn || data.charging,data.dcOn,data.dcOn,data.charging,data.hvOn || data.charging};
+        boolean[] enabled = {data.hvOn || data.charging,data.dcOn,data.dcOn,data.charging};
         for (int i = 0; i < flows.length; i++) {
             paint.setPathEffect(enabled[i] ? null : DASH);
-            stroke(canvas,flows[i],enabled[i] ? (i == 3 || i == 0 && data.charging || i == 4 && data.charging ? palette.good : active) : dim,2.5f);
+            stroke(canvas,flows[i],enabled[i] ? (i == 3 || i == 0 && data.charging ? palette.good : active) : dim,2.5f);
             paint.setPathEffect(null);
             float[] xy = flowPaths[i];
             circle(canvas,new Point(xy[0],xy[1]),4,enabled[i] ? flowColor : dim,0,0);

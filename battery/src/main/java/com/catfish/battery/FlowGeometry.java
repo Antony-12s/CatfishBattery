@@ -3,10 +3,10 @@ package com.catfish.battery;
 /** Pack-local positions, including the original margins for the external nodes. */
 final class FlowGeometry {
     static final int LEFT = -100, WIDTH = 1390, HEIGHT = 470;
-    static final int HV = 0, DC = 1, LV = 2, CHARGER = 3, LINK = 4;
+    static final int HV = 0, DC = 1, LV = 2, CHARGER = 3;
     private static final float[][] ROUTES = {
             SchematicGeometry.flowPath("hv"), SchematicGeometry.flowPath("dc"), SchematicGeometry.flowPath("lv"),
-            SchematicGeometry.flowPath("chg"), SchematicGeometry.flowPath("link")
+            SchematicGeometry.flowPath("chg")
     };
     private static final float[][] LENGTHS = new float[ROUTES.length][];
 
@@ -47,13 +47,11 @@ final class FlowGeometry {
     }
 
     /**
-     * Routes that show moving dots: energy out of the pack also runs the HV PACK -> Loads link; while charging the
-     * pack wire and the link run too (the overlay reverses them, towards the pack).
+     * Routes that show moving dots: while charging the pack wire runs too (the overlay reverses it, towards the pack).
      */
     static int drawn(int active) {
         int routes = active;
-        if ((active & (1 << HV)) != 0) routes |= 1 << LINK;
-        if ((active & (1 << CHARGER)) != 0) routes |= (1 << HV) | (1 << LINK);
+        if ((active & (1 << CHARGER)) != 0) routes |= 1 << HV;
         return routes;
     }
 
