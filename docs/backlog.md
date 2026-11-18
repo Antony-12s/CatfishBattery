@@ -28,6 +28,17 @@ Items noted for a later batch of fixes. Not started.
   `chgEtaMin` with `fx(m.chgEtaMin,0)+' min'` (`BatteryWebPages.java` ~:177);
   the Charging page already has `mins(ms)` (~:287) that does `h` + `min`,
   so reuse that format instead of adding another.
+- **Schematic stays black in day mode.** In the daylight theme the page is
+  light but the whole pack diagram panel (`.packWrap` plus the 3D blocks,
+  terminals and labels) is still black (car screenshot, 2026-11-18). This was
+  deliberate earlier: `BatteryWindowStyle.java` ~:123 "keeps its original dark
+  substrate so the original SVG labels stay legible in daylight", and the SVG
+  hardcodes dark colours (`drawBox` faces `#26323f…`, terminal/dot strokes
+  `#0a0f16`, wire `#06101a`, `.sysNode`, `.socKicker` `#8f9cb3`). Owner now
+  wants a light day version. Needs a day palette for the panel, blocks, wires,
+  node boxes and labels with enough contrast; keep the 1180x470 geometry,
+  anchors and flow paths unchanged (AGENTS.md). Check both themes in the
+  layout tool and on the car.
 
 ## Car verification
 
