@@ -25,7 +25,7 @@ final class FlowOverlayView extends View {
     };
     private UiPalette palette;
     private boolean allowMotion;
-    private boolean running, reverseHv;
+    private boolean running, reverseHv, v2l;
     private int routes;
     private float phase;
 
@@ -52,7 +52,10 @@ final class FlowOverlayView extends View {
             active = FlowGeometry.activeRoutes(amps, plugged, Boolean.TRUE.equals(batteryData.opt("dcdcOn")));
             reverse = (active & (1 << FlowGeometry.HV)) != 0 && amps < 0;
         }
-        if (active == routes && reverse == reverseHv) return;
+        boolean out = SchematicReadings.inlet(batteryData) == SchematicReadings.INLET_V2L;
+        if (out) active |= 1 << FlowGeometry.CHARGER; // power out through the inlet: card -> inlet, blue
+        if (active == routes && reverse == reverseHv && out == v2l) return;
+        v2l = out;
         routes = active;
         reverseHv = reverse;
         updateAnimation();
@@ -109,13 +112,14 @@ final class FlowOverlayView extends View {
         canvas.translate(FlowGeometry.originX(getWidth(), scale), FlowGeometry.originY(getHeight(), scale));
         canvas.scale(scale, scale);
         boolean moving = animator.isStarted();
-        boolean charging = (routes & (1 << FlowGeometry.CHARGER)) != 0;
+        boolean charging = !v2l && (routes & (1 << FlowGeometry.CHARGER)) != 0;
         int drawn = FlowGeometry.drawn(routes);
         for (int route = 0; route <= FlowGeometry.CHARGER; route++) {
             if ((drawn & (1 << route)) == 0) continue;
             // towards the pack: regen and charging on the pack wire
-            boolean reverse = route == FlowGeometry.HV && (reverseHv || charging);
-            paint.setColor(route == FlowGeometry.CHARGER || reverse ? palette.good : palette.accent);
+            boolean reverse = route == FlowGeometry.HV && (reverseHv || charging) || route == FlowGeometry.CHARGER && v2l;
+            paint.setColor(route == FlowGeometry.CHARGER && v2l ? SchematicReadings.V2L_BLUE
+                    : route == FlowGeometry.CHARGER || reverse ? palette.good : palette.accent);
             if (moving) {
                 dot(canvas, route, reverse ? 1 - phase : phase);
                 float second = (phase + 0.5f) % 1;

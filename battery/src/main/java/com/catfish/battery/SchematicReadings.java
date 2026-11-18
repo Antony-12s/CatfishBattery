@@ -1,5 +1,7 @@
 package com.catfish.battery;
 
+import org.json.JSONObject;
+
 import java.util.Arrays;
 
 final class SchematicReadings {
@@ -78,6 +80,30 @@ final class SchematicReadings {
     static String powerLine(double volts, double amps) {
         return UiFormat.fixed(volts,1," V") + " \u00d7 " + UiFormat.fixed(Math.abs(amps),1," A") + " = "
                 + packPower(volts * amps);
+    }
+
+    static final int V2L_BLUE = 0xff4aa3ff;
+    static final int INLET_NONE = 0, INLET_AC = 1, INLET_DC = 2, INLET_V2L = 3;
+
+    /**
+     * Which charge-inlet icon to show, from read-only signals: CCS2 while the DC handle (DCChrgnHndlSts) is connected
+     * and energy flows into the pack, AC Type 2 for the AC handle (OnBdChrgrHndlSts1), V2L when the vehicle-to-load
+     * output (DchaUAct x DchaIAct) delivers at least 50 W. Nothing when no energy flows, e.g. plugged in and full.
+     */
+    static int inlet(JSONObject data) {
+        if (data == null || !Boolean.TRUE.equals(data.opt("streamConnected"))) return INLET_NONE;
+        JSONObject flow = data.optJSONObject("flow");
+        double v2lW = opt(flow,"v2lV",0,300) * opt(flow,"v2lA",0,100);
+        if (v2lW >= 50) return INLET_V2L;
+        double amps = opt(data,"battCurrentA",-1000,1000);
+        if (!(amps < -.5)) return INLET_NONE;
+        if (FlowGeometry.plugged(Double.NaN,opt(flow,"dcHandle",0,5))) return INLET_DC;
+        return FlowGeometry.plugged(opt(flow,"obcHandle",0,11),Double.NaN) ? INLET_AC : INLET_NONE;
+    }
+
+    private static double opt(JSONObject o, String key, double lo, double hi) {
+        double v = o == null ? Double.NaN : o.optDouble(key, Double.NaN);
+        return v >= lo && v <= hi ? v : Double.NaN;
     }
 
     static String packPower(double watts) {

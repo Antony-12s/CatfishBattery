@@ -13,7 +13,8 @@ final class SchematicData {
     final boolean hvOn, dcOn, plugged, dcPlug, charging;
     final String soc, soh, packPower, range, packVA, loadsTitle, dcState, dcHigh, dcLow,
             lvSoc, lvVoltage, lvState, chargePower, chargeNote,
-            kicker, powerLine, chargeTitle, chargeEta, socTarget, chargeAdded, inletLabel;
+            kicker, powerLine, chargeTitle, chargeEta, socTarget, chargeAdded, inletName, inletValue;
+    final int inlet;
     final double socProgress;
     final SchematicReadings.Band lvBand;
     final boolean powerIn;
@@ -75,7 +76,10 @@ final class SchematicData {
         powerIn = watts < 0;
         range = Double.isFinite(km) ? "≈ " + UiFormat.fixed(km,0," km") : "";
         packVA = UiFormat.fixed(volts,1," V") + " · " + UiFormat.fixed(amps,1," A");
-        loadsTitle = (into && !plugged ? "Regen" : out || charging ? "Loads" : "Idle")
+        inlet = SchematicReadings.inlet(data);
+        double v2lW = number(flow,"v2lV",0,300) * number(flow,"v2lA",0,100);
+        loadsTitle = inlet == SchematicReadings.INLET_V2L ? "Power out \u00b7 V2L " + UiFormat.power(v2lW)
+                : (into && !plugged ? "Regen" : out || charging ? "Loads" : "Idle")
                 + (hvOn && Double.isFinite(watts) ? " · " + UiFormat.power(Math.abs(watts)) : "");
         dcState = dcdcOn instanceof Boolean ? (dcOn ? "ON" : "OFF") : UiFormat.MISSING;
         lvState = dcdcOn instanceof Boolean ? (dcOn ? "charging" : "discharging") : UiFormat.MISSING;
@@ -99,7 +103,8 @@ final class SchematicData {
         socTarget = UiFormat.fixed(socNow,0," %") + (Double.isNaN(target) ? "" : " \u2192 " + UiFormat.fixed(target,0," %"));
         socProgress = Double.isFinite(socNow) ? socNow / (Double.isFinite(target) ? target : 100) : 0;
         chargeAdded = UiFormat.fixed(number(flow,"chargeKwh",0,200),1," kWh");
-        inletLabel = dcPlug ? "DC INLET" : "AC INLET";
+        inletName = inlet == SchematicReadings.INLET_DC ? "CCS2" : "AC Type 2";
+        inletValue = inlet == SchematicReadings.INLET_V2L ? UiFormat.power(v2lW) + " out" : UiFormat.power(chargerW);
         chargeNote = SchematicReadings.chargeNote(number(flow,"chargeKwh",0,200),
                 charging ? number(flow,"chargeEtaMin",0,1440) : Double.NaN);
     }

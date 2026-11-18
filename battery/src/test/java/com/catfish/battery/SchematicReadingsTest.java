@@ -86,14 +86,36 @@ public class SchematicReadingsTest {
         assertEquals("83 % \u2192 100 %",d.socTarget);
         assertEquals(.83,d.socProgress,1e-9);
         assertEquals("3.6 kWh",d.chargeAdded);
-        assertEquals("AC INLET",d.inletLabel);
+        assertEquals(SchematicReadings.INLET_AC,d.inlet);
+        assertEquals("AC Type 2",d.inletName);
+        assertEquals("7.0 kW",d.inletValue);
         reading.getJSONObject("flow").put("targetSoc",80).put("dcHandle",2).remove("obcHandle");
         SchematicData dc = new SchematicData(reading);
         assertEquals("To 80 % in 11 h 55 min",dc.chargeEta);
-        assertEquals("DC INLET",dc.inletLabel);
+        assertEquals(SchematicReadings.INLET_DC,dc.inlet);
+        assertEquals("CCS2",dc.inletName);
         SchematicData off = new SchematicData(null);
         assertEquals("",off.chargeEta);
         assertEquals("--",off.chargeAdded);
         assertEquals("HV PACK \u00b7 400 V",off.kicker);
+    }
+
+    @Test public void inletShowsOnlyWhileEnergyFlowsAndPowerOutIsV2l() throws Exception {
+        JSONObject plugIdle = new JSONObject("""
+                {"streamConnected":true,"battVoltageV":391,"battCurrentA":0.2,"flow":{"obcHandle":2}}
+                """);
+        assertEquals(SchematicReadings.INLET_NONE,new SchematicData(plugIdle).inlet); // plugged, full: no icon
+        assertEquals(SchematicReadings.INLET_NONE,new SchematicData(new JSONObject("{\"streamConnected\":true}")).inlet);
+        JSONObject v2l = new JSONObject("""
+                {"streamConnected":true,"battVoltageV":391,"battCurrentA":4.8,
+                 "flow":{"obcHandle":2,"v2lV":230,"v2lA":7.8}}
+                """);
+        SchematicData out = new SchematicData(v2l);
+        assertEquals(SchematicReadings.INLET_V2L,out.inlet);
+        assertEquals("AC Type 2",out.inletName);
+        assertEquals("1.8 kW out",out.inletValue);
+        assertEquals("Power out \u00b7 V2L 1.8 kW",out.loadsTitle);
+        assertFalse(out.charging);
+        assertEquals(SchematicReadings.INLET_V2L,SchematicReadings.inlet(v2l));
     }
 }

@@ -158,8 +158,8 @@ final class PackSchematicView extends View {
     // the inlet on its left, step 3 DC-DC and 12 V side by side under the falling edge.
     private static final float HERO_L = 790, HERO_T = 6, HERO_B = 108, RIGHT = 1280;
     private static final float LOADS_L = 930, LOADS_T = 142, LOADS_B = 310;
-    private static final float INLET_L = 796, INLET_R = 900, INLET_T = 258, INLET_B = 290;
-    private static final float LOW_T = 350, LOW_B = 434, DC_L = 700, DC_R = 980, LV_L = 1004;
+    private static final float INLET_L = 766, INLET_R = 900, INLET_T = 250, INLET_B = 298;
+    private static final float LOW_T = 350, LOW_B = 434, DC_L = 700, DC_R = 966, LV_L = 1010;
     private static final float SPARK_L = 1084, SPARK_R = 1266, SPARK_T = 38, SPARK_B = 84;
 
     void setTrend(SocTrend trend) {
@@ -171,13 +171,18 @@ final class PackSchematicView extends View {
         int dim = tone(0x80e2c08d,0xff8298af), active = tone(CHAMPAGNE,palette.accent);
         int flowColor = data.charging ? palette.good : active;
         boolean[] enabled = {data.hvOn || data.charging,data.dcOn,data.dcOn,data.charging};
+        boolean inletOn = data.inlet != SchematicReadings.INLET_NONE, v2l = data.inlet == SchematicReadings.INLET_V2L;
+        int inletColor = v2l ? SchematicReadings.V2L_BLUE : palette.good;
+        enabled[3] = inletOn;
         for (int i = 0; i < flows.length; i++) {
+            if (i == 3 && !inletOn) continue; // no plug icon, no inlet wire
             paint.setPathEffect(enabled[i] ? null : DASH);
-            stroke(canvas,flows[i],enabled[i] ? (i == 3 || i == 0 && data.charging ? palette.good : active) : dim,2.5f);
+            stroke(canvas,flows[i],enabled[i] ? (i == 3 ? inletColor : i == 0 && data.charging ? palette.good : active) : dim,2.5f);
             paint.setPathEffect(null);
             float[] xy = flowPaths[i];
-            circle(canvas,new Point(xy[0],xy[1]),4,enabled[i] ? flowColor : dim,0,0);
-            circle(canvas,new Point(xy[xy.length-2],xy[xy.length-1]),4,enabled[i] ? flowColor : dim,0,0);
+            int port = !enabled[i] ? dim : i == 3 ? inletColor : flowColor;
+            circle(canvas,new Point(xy[0],xy[1]),4,port,0,0);
+            circle(canvas,new Point(xy[xy.length-2],xy[xy.length-1]),4,port,0,0);
         }
 
         // step 1: HV PACK card
@@ -196,7 +201,7 @@ final class PackSchematicView extends View {
         drawTrend(canvas,flowColor);
 
         // step 2: Loads, or the charge in progress
-        node(canvas,LOADS_L,LOADS_T,RIGHT,LOADS_B,data.charging ? palette.good : 0);
+        node(canvas,LOADS_L,LOADS_T,RIGHT,LOADS_B,data.charging ? palette.good : v2l ? inletColor : 0);
         float lx = LOADS_L + 14, rx = RIGHT - 14;
         if (data.charging) {
             label(canvas,data.chargeTitle,lx,LOADS_T+24,19,palette.good,BOLD,Paint.Align.LEFT);
@@ -206,15 +211,13 @@ final class PackSchematicView extends View {
             row(canvas,LOAD_NAMES[1],data.loadPower[1],LOADS_T+106,data.shares[1],active);
             row(canvas,LOAD_NAMES[2],data.loadPower[2],LOADS_T+134,data.shares[2],active);
         } else {
-            title(canvas,data.loadsTitle,lx,LOADS_T+24);
+            if (v2l) label(canvas,data.loadsTitle,lx,LOADS_T+24,19,inletColor,BOLD,Paint.Align.LEFT);
+            else title(canvas,data.loadsTitle,lx,LOADS_T+24);
             for (int i = 0; i < LOAD_NAMES.length; i++) {
                 row(canvas,LOAD_NAMES[i],data.loadPower[i],LOADS_T+50+i*28,data.shares[i],active);
             }
         }
-        boolean plugged = data.plugged;
-        round(canvas,INLET_L,INLET_T,INLET_R,INLET_B,16,plugged ? tone(0x294fe09a,0xffe1f4e9) : nodeColor(),
-                plugged ? palette.good : tone(0x38e2c08d,palette.line));
-        label(canvas,data.inletLabel,(INLET_L+INLET_R)/2,INLET_T+21,13,plugged ? palette.good : muted(),MONO,Paint.Align.CENTER);
+        if (inletOn) drawInlet(canvas,inletColor,data.inlet == SchematicReadings.INLET_DC);
 
         // step 3: DC-DC and the 12 V battery side by side
         node(canvas,DC_L,LOW_T,DC_R,LOW_B);
@@ -233,6 +236,41 @@ final class PackSchematicView extends View {
         label(canvas,data.lvVoltage,RIGHT-14,LOW_T+50,18,bandInk(data.lvBand,ink()),BOLD,Paint.Align.RIGHT);
         readLabel(canvas,"State",LV_L+14,LOW_T+74,muted());
         value(canvas,data.lvState,RIGHT-14,LOW_T+74);
+    }
+
+    /** The plug badge left of the Loads card: AC Type 2 or CCS2 icon with its power; green in, blue out (V2L). */
+    private void drawInlet(Canvas c,int color,boolean ccs2) {
+        round(c,INLET_L,INLET_T,INLET_R,INLET_B,14,(color & 0x00ffffff) | 0x22000000,color);
+        float cx = INLET_L + 24, cy = (INLET_T + INLET_B) / 2f;
+        c.save();
+        c.translate(cx,cy);
+        float k = ccs2 ? .58f : .66f;
+        c.scale(k,k);
+        c.translate(-30,ccs2 ? -34 : -32);
+        outline(color,3);
+        c.drawPath(ccs2 ? CCS2_SHELL : TYPE2_SHELL,paint);
+        fill(color);
+        float[][] pins = ccs2 ? CCS2_PINS : TYPE2_PINS;
+        for (float[] p : pins) c.drawCircle(p[0],p[1],p[2],paint);
+        c.restore();
+        label(c,data.inletName,INLET_L+50,cy-3,15,color,BOLD,Paint.Align.LEFT);
+        label(c,data.inletValue,INLET_L+50,cy+15,13,color,NORMAL,Paint.Align.LEFT);
+    }
+
+    // connector faces in a 60-unit box: Type 2 (flat top, 7 pins); CCS2 (Type 2 signal half over two DC pins)
+    private static final Path TYPE2_SHELL = new Path(), CCS2_SHELL = new Path();
+    private static final float[][] TYPE2_PINS = {{23,21,2.6f},{37,21,2.6f},{17,32,4},{30,32,4},{43,32,4},{23,44,4},{37,44,4}};
+    private static final float[][] CCS2_PINS = {{23,15,2.6f},{37,15,2.6f},{30,27,4},{20,53,6},{40,53,6}};
+    static {
+        TYPE2_SHELL.moveTo(11.2f,14);
+        TYPE2_SHELL.lineTo(48.8f,14);
+        TYPE2_SHELL.arcTo(4,6,56,58,-43.8f,267.6f,false);
+        TYPE2_SHELL.close();
+        CCS2_SHELL.moveTo(11.2f,8);
+        CCS2_SHELL.lineTo(48.8f,8);
+        CCS2_SHELL.arcTo(6,-6,54,38,-35,250,false);
+        CCS2_SHELL.close();
+        CCS2_SHELL.addRoundRect(9,42,51,64,11,11,Path.Direction.CW);
     }
 
     /** One card row: label left, value right, an optional share bar underneath (share < 0: no bar). */
