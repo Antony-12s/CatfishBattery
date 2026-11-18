@@ -18,7 +18,7 @@ public class FlowGeometryTest {
     @Test public void dotsTravelAlongTheStaircaseWires() {
         float[] point = new float[2];
         FlowGeometry.position(FlowGeometry.DC, 0.5f, point);
-        assertArrayEquals(new float[]{565, 392}, point, 0);
+        assertArrayEquals(new float[]{535, 392}, point, 0);
         FlowGeometry.position(FlowGeometry.HV, 1, point);
         assertArrayEquals(new float[]{930, 192}, point, 0);
     }

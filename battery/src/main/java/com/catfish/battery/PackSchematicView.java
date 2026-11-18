@@ -157,7 +157,7 @@ final class PackSchematicView extends View {
     private static final float HERO_L = 790, HERO_T = 6, HERO_B = 108, RIGHT = 1280;
     private static final float LOADS_L = 930, LOADS_T = 142, LOADS_B = 310;
     private static final float INLET_L = 766, INLET_R = 900, INLET_T = 250, INLET_B = 298;
-    private static final float LOW_T = 350, LOW_B = 434, DC_L = 700, DC_R = 966, LV_L = 1010;
+    private static final float LOW_T = 350, LOW_B = 434, DC_L = 640, DC_R = 966, LV_L = 1010;
     private static final float SPARK_L = 1084, SPARK_R = 1266, SPARK_T = 38, SPARK_B = 84;
 
     void setTrend(SocTrend trend) {
