@@ -90,3 +90,12 @@ Do not resolve signer mismatches by uninstalling or clearing data.
   releases from the GitHub API (read-only, once per run or on Check now) and
   shows the changelog; it never downloads or installs anything. About shows the
   build time and commit from BuildConfig and a Ko-fi QR code.
+
+- Cell lift motion (2026-11-18, owner picked an HTML
+  mockup, kept out of git): on the schematic, green cells stay flat,
+  a cell above the pack median springs up with a small overshoot (warn: by its
+  deviation, danger: full height and a gentle bob), a cell below it sinks a
+  little, and band colours blend instead of switching. `CellMotion` owns the
+  physics; geometry, sensor anchors and flow paths are unchanged. The view only
+  redraws per frame while cells move or a danger cell bobs, and snaps when the
+  system turns animations off.

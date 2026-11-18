@@ -1,5 +1,6 @@
 package com.catfish.battery;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.DashPathEffect;
@@ -10,6 +11,7 @@ import android.graphics.RectF;
 import android.graphics.RadialGradient;
 import android.graphics.Shader;
 import android.graphics.Typeface;
+import android.os.SystemClock;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -48,6 +50,11 @@ final class PackSchematicView extends View {
     private final Path busPositive = line(iso(54,87,45),iso(360,87,45));
     private final Path busNegative = line(iso(54,92,45),iso(360,92,45));
     private SchematicData data = new SchematicData(null);
+    // cell lift (CellMotion): targets are rebuilt in setData/setNight, never in onDraw
+    private final CellMotion motion = new CellMotion(118, ValueAnimator.areAnimatorsEnabled());
+    private final float[] lifts = new float[118];
+    private final int[] liftColors = new int[118];
+    private final boolean[] dangers = new boolean[118];
     private UiPalette palette;
     private Selection selected;
     private float downX, downY;
@@ -71,16 +78,19 @@ final class PackSchematicView extends View {
         }
         setClickable(true);
         setContentDescription("Battery pack schematic and energy flow");
+        retargetCells(); // grey WAIT colours until the first reading, which then blends in
     }
 
     void setData(JSONObject batteryData) {
         data = new SchematicData(batteryData);
+        retargetCells();
         invalidate();
     }
 
     void setNight(boolean night) {
         if (palette.night == night) return;
         palette = UiPalette.of(night);
+        retargetCells();
         invalidate();
     }
 
@@ -88,6 +98,8 @@ final class PackSchematicView extends View {
         super.onDraw(canvas);
         Fit fit = fit(getWidth(),getHeight());
         if (fit.scale() <= 0) return;
+        long now = SystemClock.uptimeMillis();
+        motion.step(now);
         canvas.save();
         canvas.translate(fit.offsetX(),fit.offsetY());
         canvas.scale(fit.scale(),fit.scale());
@@ -104,11 +116,19 @@ final class PackSchematicView extends View {
                 drawBox(canvas,box,tone(0xff2a3446,0xffe7eff7),tone(0xff191f2b,0xffbbccdc),
                         tone(0xff111621,0xffa9bdd2),tone(0xff3c4c66,0xff879fb6),.5f);
             } else {
-                SchematicReadings.Band band = data.cellBands[box.geometry.cell()-1];
-                int color = cellColor(band);
-                boolean waiting = band == SchematicReadings.Band.WAIT && !palette.night;
+                int i = box.geometry.cell()-1;
+                boolean waiting = data.cellBands[i] == SchematicReadings.Band.WAIT && !palette.night;
+                int color = motion.color(i);
+                float lift = motion.offset(i,now);
+                if (lift > .3f) { // the empty slot it rose from, tinted red under a danger cell
+                    fill(dangers[i] ? (palette.danger & 0xffffff) | 0x55000000 : tone(0x99000000,0x40000000));
+                    canvas.drawPath(box.paths[2],paint);
+                }
+                canvas.save();
+                canvas.translate(0,-lift*1.25f); // iso(): one unit of height is 1.25 design px up
                 drawBox(canvas,box,color,shade(color,waiting ? .87f : .6f),
                         shade(color,waiting ? .78f : .4f),0x2e000000,.4f);
+                canvas.restore();
             }
         }
         int wire = tone(0xff06101a,0xff8599af);
@@ -130,9 +150,26 @@ final class PackSchematicView extends View {
         label(canvas,"COOLANT",-62,240,14,kicker(),MONO,Paint.Align.LEFT);
         for (DrawableSensor sensor : sensors) drawSensor(canvas,sensor);
         label(canvas,"FRONT",front.x(),front.y(),12,tone(0xff8fb0e0,0xff274e78),MONO,Paint.Align.CENTER);
-        drawSelection(canvas);
+        drawSelection(canvas,now);
         drawTooltip(canvas);
         canvas.restore();
+        if (motion.moving() || motion.hovering()) postInvalidateOnAnimation();
+    }
+
+    /** New lift and colour targets from the current readings; the ripple starts at the most deviating cell. */
+    private void retargetCells() {
+        double median = data.extremes.median();
+        int hot = 0;
+        double worst = -1;
+        for (int i = 0; i < lifts.length; i++) {
+            SchematicReadings.Band band = data.cellBands[i];
+            double deviation = data.cells[i] - median;
+            lifts[i] = CellMotion.lift(band,deviation);
+            liftColors[i] = cellColor(band);
+            dangers[i] = band == SchematicReadings.Band.DANGER;
+            if (Double.isFinite(deviation) && Math.abs(deviation) > worst) { worst = Math.abs(deviation); hot = i; }
+        }
+        motion.retarget(lifts,liftColors,dangers,hot,SystemClock.uptimeMillis());
     }
 
     /** Small rotating arc while the BECM SOH read runs (about 1-2 s); keeps animating only while shown. */
@@ -394,11 +431,12 @@ final class PackSchematicView extends View {
         return true;
     }
 
-    private void drawSelection(Canvas canvas) {
+    private void drawSelection(Canvas canvas,long now) {
         if (selected == null) return;
         RectF r = selected.bounds;
+        float dy = selected.cell > 0 ? -motion.offset(selected.cell-1,now)*1.25f : 0; // follow a lifted cell
         outline(tone(0xfff0d6ad,palette.accent),2.5f);
-        canvas.drawRoundRect(r.left-3,r.top-3,r.right+3,r.bottom+3,3,3,paint);
+        canvas.drawRoundRect(r.left-3,r.top-3+dy,r.right+3,r.bottom+3+dy,3,3,paint);
     }
 
     private void drawTooltip(Canvas canvas) {
