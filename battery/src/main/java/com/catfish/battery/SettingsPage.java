@@ -33,7 +33,7 @@ import java.util.TimeZone;
 import java.util.function.IntConsumer;
 
 /**
- * Settings page: a summary card per section on the left (Chargers & prices, Preferences, Totals & reset, About), each
+ * Settings page: a summary card per section on the left (Preferences, Chargers & prices, Totals & reset, About), each
  * showing its current values, and the open section on the right; Save at the bottom.
  * Loads BatteryDataHub.settingsJson(), saves with saveSettings(json); BatterySettings.clean stays the validation and
  * fields it would change show the saved value inline. Edits live in a {@link SettingsForm} until Save, so they
@@ -43,8 +43,8 @@ final class SettingsPage extends FrameLayout {
     private static final String TAG = "CatfishBattery";
 
     private final ChargingUi ui;
-    private static final String[] SECTIONS = { "Chargers & prices", "Preferences", "Totals & reset", "About" };
-    private static final String[] ICONS = { "\u26A1\uFE0E", "\u2699\uFE0E", "\u21BB", "i" };
+    private static final String[] SECTIONS = { "Preferences", "Chargers & prices", "Totals & reset", "About" };
+    private static final String[] ICONS = { "\u2699\uFE0E", "\u26A1\uFE0E", "\u21BB", "i" };
 
     private final LinearLayout chargersBox, prefs, totals;
     private final View[] items = new View[SECTIONS.length], panes;
@@ -104,7 +104,7 @@ final class SettingsPage extends FrameLayout {
         chargers.addView(add, addLp);
         prefs = ui.column();
         totals = ui.column();
-        panes = new View[] { chargers, prefs, totals, about() };
+        panes = new View[] { prefs, chargers, totals, about() };
         for (View p : panes) sections.addView(p, ChargingUi.fillWidth());
 
         // save bar
@@ -165,8 +165,8 @@ final class SettingsPage extends FrameLayout {
 
     private void summaries() {
         if (form == null) return;
-        ChargingUi.set(summaries[0], form.chargersSummary());
-        ChargingUi.set(summaries[1], form.prefsSummary());
+        ChargingUi.set(summaries[1], form.chargersSummary());
+        ChargingUi.set(summaries[0], form.prefsSummary());
         ChargingUi.set(summaries[2], form.totalsSummary());
     }
 
