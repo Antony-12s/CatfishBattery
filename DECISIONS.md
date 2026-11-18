@@ -16,6 +16,30 @@ Size the original SVG by both available axes without distortion; keep top
 tabs and the vehicle's system bars/climate dock visible. Recreate native
 chrome on day/night changes while preserving the selected page.
 
+## Native pages instead of the WebView (2026-11-18)
+
+The owner asked for every page as native Android views (backlog: "Make every
+page native"). `BatteryActivity` keeps the native top tab bar and now hosts
+`StatusPage`, `ChargingPage`, `HistoryPage` and `SettingsPage` directly; there
+is no WebView, no in-app HTTP interception and no `CFBattery` JS bridge (pages
+call `BatteryDataHub` themselves). The look follows the approved WebView
+window sizes (`BatteryWindowStyle.css()`, 1 CSS px = 1 dp at the car's
+density 160) and Midnight Champagne at night.
+
+- Status: `PackSchematicView` draws the same 1180x470 3D pack, anchors and
+  flow paths on a Canvas, scaled by both axes without distortion;
+  `FlowOverlayView` sits exactly over it in the same FrameLayout. The
+  Schematic/Cells switch stays (choice kept in preferences); the Cells view
+  (`CellsView`/`CellsModel`) keeps the 118 cell + 12 sensor tiles, bands and
+  ▼/▲ markers. The SOH badge left the Pack header; SOH is shown in the HV PACK
+  block.
+- Polling: Status reads `BatteryDataHub.dataJson()` once a second on a
+  background thread while shown and resumed; Charging/History refresh every
+  30 s and Settings on show, the WebView rates. Day/night still recreates the
+  activity and the selected page survives it.
+- `BatteryWebPages`/`BatteryWindowStyle` stay only as the porting reference
+  until integration removes them; HTML-based tests and tools are replaced then.
+
 ## Data and privileges
 
 Catfish Battery owns its history independently of CF; no old CF history is
