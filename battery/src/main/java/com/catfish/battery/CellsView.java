@@ -1,11 +1,13 @@
 package com.catfish.battery;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.os.SystemClock;
 import android.text.TextUtils;
 import android.text.TextPaint;
 import android.view.View;
@@ -16,6 +18,9 @@ import java.util.List;
  * The Status page's Cells view on one Canvas: the four modules (rows P1 P4 / P2 P3, the BMS strip at the front) with 30 or
  * 29 cell tiles each in 10 x 3 grids, then the 12 sensor tiles. Same bands, labels and ▼ / ▲ markers as the WebView Cells
  * view (BatteryWebPages drawPacks / drawSensorTiles); the numbers come from {@link CellsModel}.
+ * Cell tiles move like the schematic's cells ({@link CellMotion}): green stays flat, a high cell lifts as a raised key
+ * with a 3D edge and a shadow, a red one lifts fully and bobs with a glow, a low one sinks, and a reading that changes
+ * anything sends a small wave across the grid from the most deviating cell.
  */
 final class CellsView extends View {
     private final StatusStyle s;
@@ -24,8 +29,13 @@ final class CellsView extends View {
             mark = new TextPaint(Paint.ANTI_ALIAS_FLAG), head = new TextPaint(Paint.ANTI_ALIAS_FLAG),
             small = new TextPaint(Paint.ANTI_ALIAS_FLAG), front = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private final DashPathEffect dash;
-    private final RectF r = new RectF(), tileBox = new RectF(), inset = new RectF();
+    private final RectF r = new RectF(), r2 = new RectF(), tileBox = new RectF(), inset = new RectF();
     private CellsModel model;
+    private final CellMotion motion = new CellMotion(CellsModel.CELLS, ValueAnimator.areAnimatorsEnabled(), true);
+    private final float[] lifts = new float[CellsModel.CELLS];
+    private final int[] liftColors = new int[CellsModel.CELLS];
+    private final boolean[] dangers = new boolean[CellsModel.CELLS];
+    private long now;
 
     CellsView(Context context) {
         super(context);
@@ -46,11 +56,34 @@ final class CellsView extends View {
 
     void setModel(CellsModel m) {
         model = m;
+        int hot = 0;
+        double worst = -1;
+        for (CellsModel.Module mod : m.modules) {
+            for (CellsModel.Tile t : mod.tiles) {
+                int i = t.cell - 1;
+                lifts[i] = CellMotion.lift(band(t.band), t.deviation);
+                liftColors[i] = valueColor(t.band);
+                dangers[i] = t.band == CellsModel.DANGER;
+                if (Double.isFinite(t.deviation) && Math.abs(t.deviation) > worst) { worst = Math.abs(t.deviation); hot = i; }
+            }
+        }
+        motion.retarget(lifts, liftColors, dangers, hot, SystemClock.uptimeMillis());
         invalidate();
+    }
+
+    private static SchematicReadings.Band band(int band) {
+        return band == CellsModel.DANGER ? SchematicReadings.Band.DANGER : band == CellsModel.WARN ? SchematicReadings.Band.WARN
+                : band == CellsModel.GOOD ? SchematicReadings.Band.GOOD : SchematicReadings.Band.WAIT;
+    }
+
+    private int valueColor(int band) {
+        return band == CellsModel.WAIT ? s.muted2 : band == CellsModel.GOOD ? s.text : s.band(band);
     }
 
     @Override protected void onDraw(Canvas c) {
         if (model == null) return;
+        now = SystemClock.uptimeMillis();
+        motion.step(now);
         float w = getWidth(), h = getHeight();
         float tileH = s.px(76), headH = s.px(32), gap = s.px(8), rowGap = s.px(18);
         float sensorTop = h - tileH;
@@ -88,6 +121,7 @@ final class CellsView extends View {
             r.set(i * (tw + gap), sensorTop, i * (tw + gap) + tw, h);
             tile(c, model.sensors.get(i), r, true);
         }
+        if (motion.moving() || motion.hovering()) postInvalidateOnAnimation();
     }
 
     private void drawModule(Canvas c, CellsModel.Module m, float x, float y, float w, float h) {
@@ -104,11 +138,49 @@ final class CellsView extends View {
         c.drawText(TextUtils.ellipsize(m.head, small, x + w - padX - hx, TextUtils.TruncateAt.END).toString(), hx, base, small);
         float gy = base + s.px(8) + s.px(10), gw = w - 2 * padX, gh = y + h - padY - gy;
         float tw = (gw - gap * 9) / 10, th = (gh - gap * 2) / 3;
-        for (int i = 0; i < m.tiles.size(); i++) {
-            float tx = x + padX + (i % 10) * (tw + gap), ty = gy + (i / 10) * (th + gap);
-            r.set(tx, ty, tx + tw, ty + th);
-            tile(c, m.tiles.get(i), r, false);
+        for (int pass = 0; pass < 2; pass++) { // raised tiles last, so they sit over their neighbours
+            for (int i = 0; i < m.tiles.size(); i++) {
+                CellsModel.Tile t = m.tiles.get(i);
+                if ((motion.offset(t.cell - 1, now) > LIFTED) != (pass == 1)) continue;
+                float tx = x + padX + (i % 10) * (tw + gap), ty = gy + (i / 10) * (th + gap);
+                r.set(tx, ty, tx + tw, ty + th);
+                movingTile(c, t, r);
+            }
         }
+    }
+
+    private static final float LIFTED = .3f;
+
+    /** A cell tile at its lift (1 = full): raised key with an edge and shadow, or sunk with a darker face. */
+    private void movingTile(Canvas c, CellsModel.Tile t, RectF box) {
+        int i = t.cell - 1;
+        float u = motion.offset(i, now) / CellMotion.MAX_LIFT;
+        float dy = u > 0 ? -u * s.px(16) : -u * s.px(5) / (CellMotion.MAX_SINK / CellMotion.MAX_LIFT);
+        dy += motion.wave(i, now) * s.px(6);
+        float scale = u > 0 ? 1 + .05f * u * (dangers[i] ? 1 : .5f) : 1;
+        c.save();
+        c.translate(0, dy);
+        c.scale(scale, scale, box.centerX(), box.centerY());
+        float radius = s.px(12);
+        if (u > .015f) {
+            float thick = u * s.px(10);
+            if (dangers[i]) { // glow
+                r2.set(box.left - s.px(5), box.top - s.px(5), box.right + s.px(5), box.bottom + s.px(5) + thick);
+                fill.setColor(StatusStyle.alpha(s.danger, .22f));
+                c.drawRoundRect(r2, radius + s.px(5), radius + s.px(5), fill);
+            }
+            r2.set(box.left, box.top + thick, box.right, box.bottom + thick);
+            fill.setShadowLayer(u * s.px(16), 0, u * s.px(10), StatusStyle.alpha(0xff000000, .35f + .3f * u));
+            fill.setColor(SchematicReadings.shade(motion.color(i), .45f) | 0xff000000);
+            c.drawRoundRect(r2, radius, radius, fill); // the key's edge
+            fill.clearShadowLayer();
+        }
+        tile(c, t, box, false);
+        if (u < -.01f) {
+            fill.setColor(StatusStyle.alpha(0xff000000, Math.min(.35f, -u * .35f / (CellMotion.MAX_SINK / CellMotion.MAX_LIFT))));
+            c.drawRoundRect(box, radius, radius, fill);
+        }
+        c.restore();
     }
 
     private void tile(Canvas c, CellsModel.Tile t, RectF box, boolean sensor) {
@@ -128,7 +200,7 @@ final class CellsView extends View {
         label.setTextSize(labelSize);
         label.setColor(s.muted2);
         value.setTextSize(valueSize);
-        value.setColor(band == CellsModel.WAIT ? s.muted2 : band == CellsModel.GOOD ? s.text : s.band(band));
+        value.setColor(sensor ? valueColor(band) : motion.color(t.cell - 1)); // cells blend toward the new band colour
         float block = labelSize + s.px(4) + valueSize;
         float top = b.centerY() - block / 2;
         c.drawText(TextUtils.ellipsize(t.label, label, inner, TextUtils.TruncateAt.END).toString(),

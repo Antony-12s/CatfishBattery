@@ -5,13 +5,17 @@ package com.catfish.battery;
  * Green cells sit flat; a cell above the pack median springs up with a small overshoot, one below it sinks a little;
  * danger cells lift fully and keep bobbing gently. Colours blend toward the new band colour instead of switching.
  * A retarget ripples outward from the most deviating cell. With system animations off, everything snaps.
+ * With {@code wave} on (Cells grid), a retarget that changes anything also sends a small dip across the grid from that cell.
  */
 final class CellMotion {
     static final float MAX_LIFT = 22, MAX_SINK = 4, BOB = 1.6f;
     private static final float STIFFNESS = 150, DAMPING = 13; // underdamped: about 14 % overshoot, settles in ~1 s
     private static final float COLOR_RATE = 7, RIPPLE_MS = 7, MAX_DT = .05f;
+    private static final long WAVE_STEP_MS = 12, WAVE_MS = 500;
 
-    private final boolean animate;
+    private final boolean animate, waves;
+    private long waveAt = Long.MIN_VALUE;
+    private int waveHot;
     private final float[] z, velocity, target, hover;
     private final boolean[] danger;
     private final long[] startMs;
@@ -21,7 +25,12 @@ final class CellMotion {
     private boolean moving, colored;
 
     CellMotion(int cells, boolean animate) {
+        this(cells, animate, false);
+    }
+
+    CellMotion(int cells, boolean animate, boolean waves) {
         this.animate = animate;
+        this.waves = waves && animate;
         z = new float[cells];
         velocity = new float[cells];
         target = new float[cells];
@@ -45,12 +54,13 @@ final class CellMotion {
 
     /** New targets; {@code hot} is the most deviating cell, where the ripple starts. */
     void retarget(float[] lifts, int[] colors, boolean[] dangers, int hot, long nowMs) {
-        boolean first = !colored;
+        boolean first = !colored, any = false;
         for (int i = 0; i < z.length; i++) {
             boolean changed = target[i] != lifts[i] || targetColor[i] != colors[i] || danger[i] != dangers[i];
             target[i] = lifts[i];
             targetColor[i] = colors[i];
             danger[i] = dangers[i];
+            any |= changed;
             if (first || !animate) setColor(i, colors[i]);
             if (!animate) {
                 z[i] = lifts[i];
@@ -61,6 +71,17 @@ final class CellMotion {
             }
         }
         colored = true;
+        if (waves && any && !first) {
+            waveAt = nowMs;
+            waveHot = hot;
+        }
+    }
+
+    /** The grid wave at cell {@code i}: 0 at rest, down to -1 as the dip passes (one dip, {@code WAVE_MS} long). */
+    float wave(int i, long nowMs) {
+        if (waveAt == Long.MIN_VALUE) return 0;
+        long d = nowMs - waveAt - Math.abs(i - waveHot) * WAVE_STEP_MS;
+        return d <= 0 || d >= WAVE_MS ? 0 : -(float) Math.sin(Math.PI * d / WAVE_MS);
     }
 
     /** Advances the springs to {@code nowMs}. */
@@ -96,6 +117,7 @@ final class CellMotion {
                 if (next != t) still = false;
             }
         }
+        if (waveAt != Long.MIN_VALUE && nowMs < waveAt + WAVE_MS + WAVE_STEP_MS * z.length) still = false;
         moving = !still;
     }
 

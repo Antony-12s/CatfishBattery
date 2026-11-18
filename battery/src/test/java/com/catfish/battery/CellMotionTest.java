@@ -84,6 +84,40 @@ public class CellMotionTest {
         assertEquals(0, m.offset(1, 6000), 0);
     }
 
+    @Test public void aWaveRunsOnlyWhenSomethingChanged() {
+        CellMotion m = new CellMotion(118, true, true);
+        float[] lift = new float[118];
+        int[] colors = new int[118];
+        java.util.Arrays.fill(colors, GREEN);
+        boolean[] none = new boolean[118];
+        m.retarget(lift, colors, none, 0, 0);
+        run(m, 0, 3000);
+        assertFalse(m.moving());
+        // the same readings again: no wave, nothing to redraw
+        m.retarget(lift.clone(), colors.clone(), none, 0, 3000);
+        m.step(3016);
+        assertEquals(0, m.wave(0, 3100), 0);
+        assertFalse(m.moving());
+        // one cell turns amber: a dip starts at it and travels outward
+        lift[10] = 5;
+        colors[10] = RED;
+        m.retarget(lift, colors, none, 10, 4000);
+        assertTrue(m.wave(10, 4100) < 0);
+        assertEquals(0, m.wave(110, 4100), 0);
+        assertTrue(m.wave(110, 4000 + 1300) < 0);
+        assertTrue(m.wave(10, 4000 + 1300) == 0);
+        m.step(4100);
+        assertTrue(m.moving());
+        run(m, 4100, 3000);
+        assertFalse(m.moving());
+    }
+
+    @Test public void theSchematicHasNoWave() {
+        CellMotion m = new CellMotion(2, true);
+        m.retarget(new float[]{5, 0}, new int[]{RED, GREEN}, new boolean[2], 0, 0);
+        assertEquals(0, m.wave(0, 100), 0);
+    }
+
     @Test public void animationsOffSnapsAndNeverBobs() {
         CellMotion m = new CellMotion(1, false);
         m.retarget(new float[]{CellMotion.MAX_LIFT}, new int[]{RED}, new boolean[]{true}, 0, 0);

@@ -20,6 +20,17 @@ public class CellsModelTest {
     }
 
     @Test
+    public void cellTilesCarryTheirNumberAndDeviation() throws Exception {
+        CellsModel m = model("{\"streamConnected\":true,\"cells\":[{\"cell\":1,\"millivolts\":3280},"
+                + "{\"cell\":2,\"millivolts\":3282},{\"cell\":3,\"millivolts\":3295}]}");
+        assertEquals(1, cell(m, 1).cell);
+        assertEquals(-2, cell(m, 1).deviation, 1e-9); // median 3282
+        assertEquals(13, cell(m, 3).deviation, 1e-9);
+        org.junit.Assert.assertTrue(Double.isNaN(cell(m, 4).deviation));
+        assertEquals(0, m.sensors.get(0).cell);
+    }
+
+    @Test
     public void modulesInTheWebViewOrder() throws Exception {
         CellsModel m = model("{\"streamConnected\":false,\"cells\":[]}");
         assertEquals(4, m.modules.size());

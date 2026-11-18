@@ -99,3 +99,8 @@ Do not resolve signer mismatches by uninstalling or clearing data.
   physics; geometry, sensor anchors and flow paths are unchanged. The view only
   redraws per frame while cells move or a danger cell bobs, and snaps when the
   system turns animations off.
+  The Cells grid uses the same CellMotion (owner's pick: mix of mockups 1, 3
+  and 4): a high cell lifts as a raised key with a 3D edge and shadow, red adds
+  a glow, a low cell sinks, value colours blend, and a reading that changes any
+  cell sends one small wave across the grid from the most deviating cell (no
+  wave when nothing changed, so a 1 Hz refresh does not keep the grid moving).

@@ -25,12 +25,21 @@ final class CellsModel {
     static final class Tile {
         final String label, text, mark;
         final int band;
+        /** Cell number 1-118, 0 for a sensor tile; mV from the pack median, NaN when unknown (drives the lift). */
+        final int cell;
+        final double deviation;
 
         Tile(String label, String text, int band, String mark) {
+            this(label, text, band, mark, 0, Double.NaN);
+        }
+
+        Tile(String label, String text, int band, String mark, int cell, double deviation) {
             this.label = label;
             this.text = text;
             this.band = band;
             this.mark = mark;
+            this.cell = cell;
+            this.deviation = deviation;
         }
     }
 
@@ -76,7 +85,7 @@ final class CellsModel {
                     max = Math.max(max, v);
                 }
                 tiles.add(new Tile(String.valueOf(c), v == null ? UiFormat.MISSING : String.valueOf(v),
-                        v == null ? WAIT : cellBand(v, median), cellMarks.of(v)));
+                        v == null ? WAIT : cellBand(v, median), cellMarks.of(v), c, v == null ? Double.NaN : v - median));
             }
             String head = "cells " + first + "\u2013" + (first + count - 1)
                     + (seen == 0 ? "" : " \u00b7 " + min + "\u2013" + max + " mV \u00b7 avg " + Math.round((double) sum / seen));
