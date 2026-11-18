@@ -14,6 +14,14 @@ Items noted for a later batch of fixes. Not started.
   3. Nudge the markers apart when they collide.
   4. Drop the markers from the Schematic, keep them in Cells.
   Keep the schematic geometry and a non-colour cue for the extremes.
+- **Move SOH into the HV PACK block, two decimals.** Owner wants the
+  `SOH 96.5 %` badge (Pack card header) moved into the schematic's
+  "HV PACK · 400 V" block next to SOC / kW / V·A, shown as `96.50 %`.
+  Caveat to settle first: canspi `HvBattEgyCdn` only moves in 0.5 % steps,
+  so a second decimal is always 0 (`96.50`, never `96.44`). Real 0.01 %
+  needs the BECM DID 496D read, which takes the diagnostic channel and is
+  not run by the app. Decide: show `96.50`, or one decimal, or add a
+  manual "read exact SOH" action.
 
 ## Car verification
 
