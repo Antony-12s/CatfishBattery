@@ -22,6 +22,12 @@ Items noted for a later batch of fixes. Not started.
   needs the BECM DID 496D read, which takes the diagnostic channel and is
   not run by the app. Decide: show `96.50`, or one decimal, or add a
   manual "read exact SOH" action.
+- **Charge time left shown in raw minutes.** The schematic's charger node
+  reads `3.6 kWh in · 715 min left` (car, 2026-11-18, AC 1.1 kW). Over 60
+  minutes it must show hours: `11 h 55 min left`. The node formats
+  `chgEtaMin` with `fx(m.chgEtaMin,0)+' min'` (`BatteryWebPages.java` ~:177);
+  the Charging page already has `mins(ms)` (~:287) that does `h` + `min`,
+  so reuse that format instead of adding another.
 
 ## Car verification
 
