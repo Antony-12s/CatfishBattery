@@ -43,8 +43,8 @@ public final class SchematicGeometry {
      */
     public static float[] flowPath(String key) {
         return switch (key) {
-            case "hv" -> new float[]{834,192, 930,192};
-            case "dc" -> new float[]{584,358, 700,358};
+            case "hv" -> new float[]{764,192, 930,192};
+            case "dc" -> new float[]{514,358, 700,358};
             case "lv" -> new float[]{980,358, 1004,358};
             case "chg" -> new float[]{900,266, 930,266};
             case "link" -> new float[]{1105,108, 1105,134};
@@ -118,7 +118,8 @@ public final class SchematicGeometry {
     }
 
     static Point iso(float x, float y, float z) {
-        return new Point(530 + (x + y - 270) * 1.1f,
+        // 460: the pack sits 70 units left of the WebView original, so it does not crowd the right-hand cards
+        return new Point(460 + (x + y - 270) * 1.1f,
                 273.75f + (y - x + 90) * .62f - z * 1.25f);
     }
 
@@ -183,13 +184,13 @@ public final class SchematicGeometry {
                 tag(4,"P4","P4",iso(289,43,44),6,-40),
                 tag(2,"P2","P2",iso(135,137,44),-4,40),
                 tag(3,"P3","P3",iso(289,137,44),34,22),
-                row(11,"board","BMS board",iso(27,20,54),64,224,0xff8f9cb3),
-                row(7,"B+","B+",iso(70,87,45),110,216,0xfff2616b),
-                row(8,"B−","B−",iso(54,92,45),140,208,0xff1a1e26),
-                row(9,"DC+","DC+",iso(-1,66,27),186,200,0xfff2616b),
-                row(10,"DC−","DC−",iso(-1,86,27),216,192,0xff1a1e26),
-                row(5,"out","Coolant out",iso(-1,126,27),262,184,0xfff0792a),
-                row(6,"in","Coolant in",iso(-1,148,27),292,176,0xff2f8fe0),
+                row(11,"board","BMS board",iso(27,20,54),64,154,0xff8f9cb3),
+                row(7,"B+","B+",iso(70,87,45),110,146,0xfff2616b),
+                row(8,"B−","B−",iso(54,92,45),140,138,0xff1a1e26),
+                row(9,"DC+","DC+",iso(-1,66,27),186,130,0xfff2616b),
+                row(10,"DC−","DC−",iso(-1,86,27),216,122,0xff1a1e26),
+                row(5,"out","Coolant out",iso(-1,126,27),262,114,0xfff0792a),
+                row(6,"in","Coolant in",iso(-1,148,27),292,106,0xff2f8fe0),
                 tag(12,"air","Air",iso(208,90,30),30,-28));
     }
 

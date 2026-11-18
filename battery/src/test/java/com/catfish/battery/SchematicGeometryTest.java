@@ -16,8 +16,8 @@ public class SchematicGeometryTest {
         assertEquals(382.5f,tall.y(0),0f);
         assertEquals(865f,tall.designX(tall.x(865)),0f);
         assertEquals(341f,tall.designY(tall.y(341)),0f);
-        assertArrayEquals(new float[]{834,192,930,192},SchematicGeometry.flowPath("hv"),0f);
-        assertArrayEquals(new float[]{584,358,700,358},SchematicGeometry.flowPath("dc"),0f);
+        assertArrayEquals(new float[]{764,192,930,192},SchematicGeometry.flowPath("hv"),0f);
+        assertArrayEquals(new float[]{514,358,700,358},SchematicGeometry.flowPath("dc"),0f);
         assertArrayEquals(new float[]{980,358,1004,358},SchematicGeometry.flowPath("lv"),0f);
         assertArrayEquals(new float[]{900,266,930,266},SchematicGeometry.flowPath("chg"),0f);
         assertArrayEquals(new float[]{1105,108,1105,134},SchematicGeometry.flowPath("link"),0f);
@@ -28,7 +28,7 @@ public class SchematicGeometryTest {
         assertEquals(119,SchematicGeometry.solids().stream().map(SchematicGeometry.Box::cell).distinct().count());
 
         SchematicGeometry.Box first = SchematicGeometry.solids().stream().filter(b -> b.cell() == 1).findFirst().get();
-        assertEquals(301.2f,first.top().a().x(),.01f);
+        assertEquals(231.2f,first.top().a().x(),.01f);
         assertEquals(236.11f,first.top().a().y(),.01f);
         SchematicGeometry.Point center = SchematicGeometry.iso(64,43,44);
         assertTrue(first.top().contains(center.x(),center.y()));
@@ -36,9 +36,9 @@ public class SchematicGeometryTest {
     }
 
     @Test public void preservesAllTwelveSensorAnchors() {
-        float[][] anchors = {{428.8f,217.5f},{532.2f,275.8f},{701.6f,180.3f},{598.2f,122f},
-                {370.5f,374.5f},{394.7f,388.2f},{405.7f,283.8f},{393.6f,296.9f},
-                {304.5f,337.3f},{326.5f,349.7f},{284.7f,257.7f},{560.8f,218.9f}};
+        float[][] anchors = {{358.8f,217.5f},{462.2f,275.8f},{631.6f,180.3f},{528.2f,122f},
+                {300.5f,374.5f},{324.7f,388.2f},{335.7f,283.8f},{323.6f,296.9f},
+                {234.5f,337.3f},{256.5f,349.7f},{214.7f,257.7f},{490.8f,218.9f}};
         var sensors = SchematicGeometry.sensors();
         assertEquals(12,sensors.stream().map(SchematicGeometry.Sensor::number).distinct().count());
         for (var sensor : sensors) {
