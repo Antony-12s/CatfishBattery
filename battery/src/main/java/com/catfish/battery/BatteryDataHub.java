@@ -11,6 +11,8 @@ import android.content.Context;
 final class BatteryDataHub {
     private static VehicleBatteryReader reader;
     private static BatteryLogger logger;
+    private static SohRecorder soh;
+    private static final int GEAR_SELECTION = 0x11400400;
     private static int users;
 
     private BatteryDataHub() { }
@@ -23,6 +25,12 @@ final class BatteryDataHub {
         logger = new BatteryLogger(app, reader);
         logger.onAlert = soc -> announce(app, soc);
         logger.start();
+        // VHAL cache keeps the last value after a disconnect, so the gear counts only while the stream is up.
+        VehiclePropertyObserver vhal = new VehiclePropertyManager(app).getObserver();
+        soh = new SohRecorder(new java.io.File(app.getFilesDir(), "battery-history"),
+                () -> vhal.isConnected() ? VehiclePropertyManager.intCache().get(GEAR_SELECTION) : null,
+                SohRecorder::fetchEgyCdn);
+        soh.start();
     }
 
     /** The charge alert: a toast over whatever is on screen, and a notification that stays until read. */
@@ -45,13 +53,16 @@ final class BatteryDataHub {
     static synchronized void release() {
         if (users == 0 || --users > 0) return;
         logger.stop();
+        soh.stop();
         reader.close();
         logger = null;
+        soh = null;
         reader = null;
     }
 
     static synchronized VehicleBatteryReader reader() { return reader; }
     static synchronized BatteryLogger logger() { return logger; }
+    static synchronized SohRecorder soh() { return soh; }
 
     /** JSON for the pages' 1 s poll, with the saved energy totals; an offline snapshot when nothing holds the hub. */
     static String dataJson() {
@@ -61,7 +72,9 @@ final class BatteryDataHub {
         // lastUpdatedMs lets the page tell a live reading from a stale cached one; read-only, from recorded arrival times.
         long updated = r == null ? 0L : r.lastUpdatedMs();
         json = json.substring(0, json.length() - 1) + ",\"lastUpdatedMs\":" + updated + "}";
-        return l == null ? json : json.substring(0, json.length() - 1) + ",\"totals\":" + l.totalsJson() + "}";
+        if (l != null) json = json.substring(0, json.length() - 1) + ",\"totals\":" + l.totalsJson() + "}";
+        SohRecorder s = soh();
+        return s == null ? json : json.substring(0, json.length() - 1) + ",\"soh\":" + s.json() + "}";
     }
 
     static void resetTotals() {
