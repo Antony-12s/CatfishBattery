@@ -44,7 +44,7 @@ public final class SchematicGeometry {
         return switch (key) {
             case "hv" -> new float[]{764,192, 930,192};
             case "dc" -> new float[]{430,392, 607,392};
-            case "lv" -> new float[]{966,392, 1010,392};
+            case "lv" -> new float[]{887,392, 931,392};
             case "chg" -> new float[]{900,274, 930,274};
             default -> throw new IllegalArgumentException(key);
         };
