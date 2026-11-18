@@ -72,3 +72,12 @@ Do not resolve signer mismatches by uninstalling or clearing data.
   release the channel. The page shows a spinner during the read. BECM rows
   (0.01 % steps) are shown with two decimals; canspi HvBattEgyCdn (0.5 %
   steps) with one, and only fills in when no BECM read is under a day old.
+
+- Public charger prices (2026-11-18): Settings lists public network prices for
+  the chosen currency (THB, USD, EUR, CNY so far) from
+  `battery/src/main/assets/charger-prices.json`. The app fetches the same file
+  from GitHub `main` once per run and keeps it; the bundled copy is the offline
+  fallback. Every price carries its source, URL and date. "+ Add" only fills a
+  new charger row; nothing is saved until the driver taps Save. The cost to
+  80 % uses the car's live SOC and remaining pack energy and is hidden when
+  either is missing; no figures are made up.

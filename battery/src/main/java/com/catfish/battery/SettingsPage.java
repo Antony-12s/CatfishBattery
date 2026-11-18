@@ -43,7 +43,7 @@ final class SettingsPage extends FrameLayout {
     private static final String TAG = "CatfishBattery";
 
     private final ChargingUi ui;
-    private final LinearLayout chargersBox, prefs;
+    private final LinearLayout chargersBox, prefs, pricesBox;
     private final TextView state;
     private final Button save;
     private final Map<String, TextView> errors = new HashMap<>();
@@ -55,6 +55,9 @@ final class SettingsPage extends FrameLayout {
     private boolean dirty, loading, saving, binding;
     private TextView nextResetLine;
     private Spinner monthsSpinner, daySpinner;
+    private ChargerPrices prices;
+    private boolean pricesOnline, fetchStarted;
+    private JSONObject live; // the dataJson() poll read when the page was shown, for the cost to 80 %
 
     SettingsPage(Context context) {
         super(context);
@@ -95,8 +98,14 @@ final class SettingsPage extends FrameLayout {
 
         // right pane: preferences
         ScrollView rightScroll = pane();
+        LinearLayout right = ui.column();
+        rightScroll.addView(right, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         prefs = ui.column();
-        rightScroll.addView(prefs, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        right.addView(prefs, ChargingUi.fillWidth());
+        pricesBox = ui.column();
+        LinearLayout.LayoutParams pricesLp = ChargingUi.fillWidth();
+        pricesLp.topMargin = ui.dp(28);
+        right.addView(pricesBox, pricesLp);
         two.addView(rightScroll, ChargingUi.weight(1f));
 
         // save bar
@@ -133,9 +142,17 @@ final class SettingsPage extends FrameLayout {
             String json;
             try { json = BatteryDataHub.settingsJson(); }
             catch (RuntimeException e) { Log.e(TAG, "Battery settings unavailable", e); json = null; }
+            JSONObject poll;
+            try { poll = new JSONObject(BatteryDataHub.dataJson()); }
+            catch (JSONException | RuntimeException e) { poll = null; }
+            ChargerPrices list = prices != null ? prices : ChargerPrices.load(getContext().getApplicationContext());
             final String j = json;
+            final JSONObject p = poll;
             post(() -> {
                 loading = false;
+                live = p;
+                if (prices == null) prices = list;
+                fetchPrices();
                 if (dirty || saving) return; // the driver started editing meanwhile
                 if (!apply(j)) { if (form == null) setState("Settings unavailable", ui.danger); return; }
                 setState(saved.optBoolean("_saved") ? "Saved" : "Not saved yet", saved.optBoolean("_saved") ? ui.good : ui.warn);
@@ -189,6 +206,7 @@ final class SettingsPage extends FrameLayout {
         dirty = true;
         setState("Unsaved changes", ui.warn);
         showIssues();
+        buildPrices(); // the currency picks the list and the DC loss feeds the cost to 80 %
     }
 
     private void setState(String text, int color) {
@@ -206,6 +224,7 @@ final class SettingsPage extends FrameLayout {
         chargersBox.removeAllViews();
         for (SettingsForm.Charger c : form.chargers) addRow(c);
         buildPrefs();
+        buildPrices();
         binding = false;
         markDefaults();
         showIssues();
@@ -476,6 +495,104 @@ final class SettingsPage extends FrameLayout {
             ChargingUi.set(e.getValue(), msg == null ? "" : msg);
             e.getValue().setVisibility(msg == null ? GONE : VISIBLE);
         }
+    }
+
+    // ---- public charger prices ----
+
+    /** Once per app run: the GitHub copy of the price list, off the settings thread so a slow network never blocks Save. */
+    private void fetchPrices() {
+        if (fetchStarted) return;
+        fetchStarted = true;
+        Context app = getContext().getApplicationContext();
+        new Thread(() -> {
+            ChargerPrices fresh = ChargerPrices.fetch(app);
+            if (fresh == null) return;
+            post(() -> { prices = fresh; pricesOnline = true; if (form != null) buildPrices(); });
+        }, "charger-prices").start();
+    }
+
+    /** The networks for the chosen currency, each with its price, the cost from the live SOC to 80 % and its source. */
+    private void buildPrices() {
+        pricesBox.removeAllViews();
+        if (form == null) return;
+        ChargerPrices.Region region = prices == null ? null : prices.forCurrency(form.currency);
+        if (region == null) {
+            String have = prices == null ? "" : " Lists exist for " + String.join(", ", prices.regions.keySet()) + ".";
+            pricesBox.addView(h3("Public charger prices", "No list for " + form.currency + "." + have));
+            return;
+        }
+        String updated = ChargerPrices.dateText(prices.updated);
+        pricesBox.addView(h3("Public charger prices · " + region.name,
+                (updated.isEmpty() ? "" : "Updated " + updated + " · ") + (pricesOnline ? "online copy" : "offline copy")
+                        + ". Tap Add to make one your charger, then Save."));
+        double loss = SettingsForm.priceOf(form.lossDc);
+        Double kwh = ChargerPrices.kwhTo(live, 80);
+        Double soc = live == null ? null : ChargingCost.num(live, "soc");
+        String basis = kwh == null ? "Cost to 80 % needs the car's live SOC and pack energy."
+                : kwh == 0 ? "The pack is at " + UiFormat.fixed(soc, 0, " %") + ", already at 80 % or more."
+                : "Cost to 80 %: " + UiFormat.fixed(kwh, 1, " kWh") + " from " + UiFormat.fixed(soc, 0, " %")
+                        + (loss > 0 ? ", DC loss " + SettingsForm.shown(loss) + " % added." : ".");
+        TextView note = hint(region.peakHours.isEmpty() ? basis : region.peakHours + ". " + basis);
+        note.setPadding(0, 0, 0, ui.dp(8));
+        pricesBox.addView(note);
+        ChargingCost money = new ChargingCost(form.toJson(), TimeZone.getDefault());
+        for (ChargerPrices.Network n : region.networks) {
+            pricesBox.addView(ui.divider(false));
+            pricesBox.addView(priceRow(n, kwh, loss, money), ChargingUi.fillWidth());
+        }
+    }
+
+    private LinearLayout priceRow(ChargerPrices.Network n, Double kwh, double loss, ChargingCost money) {
+        LinearLayout row = ui.row();
+        row.setPadding(0, ui.dp(14), 0, ui.dp(14));
+        LinearLayout text = ui.column();
+        TextView name = ui.text(24, ui.text, 700);
+        ChargingUi.set(name, n.detail.isEmpty() ? n.brand : n.brand + " · " + n.detail);
+        text.addView(name);
+        String from = n.from ? "from " : "";
+        String rate = n.tou ? from + rate(n.peak) + " on-peak · " + rate(n.offPeak) + " off-peak" : from + rate(n.price);
+        String cost = kwh == null ? "" : n.tou
+                ? "  ·  to 80 % " + money.money(ChargerPrices.cost(kwh, n.peak, loss)) + " / " + money.money(ChargerPrices.cost(kwh, n.offPeak, loss))
+                : "  ·  to 80 % " + money.money(ChargerPrices.cost(kwh, n.price, loss));
+        TextView price = ui.text(22, ui.accent2, 600);
+        price.setPadding(0, ui.dp(4), 0, 0);
+        ChargingUi.set(price, rate + cost);
+        text.addView(price);
+        TextView source = ui.text(18, ui.muted2, 400);
+        source.setPadding(0, ui.dp(4), 0, 0);
+        String date = ChargerPrices.dateText(n.date);
+        ChargingUi.set(source, n.source + (date.isEmpty() ? "" : " · " + date));
+        text.addView(source);
+        row.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        Button add = ui.button("+ Add", 22, false);
+        add.setContentDescription("Add " + n.chargerName() + " as a charger");
+        add.setOnClickListener(v -> addFromNetwork(n));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ui.dp(76));
+        lp.leftMargin = ui.dp(16);
+        row.addView(add, lp);
+        return row;
+    }
+
+    /** "7.40 ฿/kWh"; three decimals only when the source has them (US averages like 0.649). */
+    private String rate(double v) {
+        boolean cents = Math.abs(v * 100 - Math.round(v * 100)) < 1e-6;
+        return UiFormat.fixed(v, cents ? 2 : 3, " " + unitText());
+    }
+
+    /** A new charger row filled from a network's prices; the driver still taps Save, as for any edit. */
+    private void addFromNetwork(ChargerPrices.Network n) {
+        SettingsForm.Charger c = form.addCharger(System.currentTimeMillis());
+        c.name = n.chargerName();
+        c.tou = n.tou;
+        c.price = n.tou ? "" : SettingsForm.shown(n.price);
+        c.peak = SettingsForm.shown(n.peak);
+        c.offPeak = SettingsForm.shown(n.offPeak);
+        binding = true;
+        addRow(c);
+        binding = false;
+        markDefaults();
+        changed();
+        Toast.makeText(getContext(), "Added " + c.name + ". Tap Save to keep it.", Toast.LENGTH_SHORT).show();
     }
 
     // ---- small views ----
