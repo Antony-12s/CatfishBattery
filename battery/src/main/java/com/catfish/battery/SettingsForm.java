@@ -153,6 +153,33 @@ final class SettingsForm {
                 + " " + c.get(Calendar.YEAR);
     }
 
+    /** One line for the Settings summary card: how many chargers and which are the AC / DC defaults. */
+    String chargersSummary() {
+        String count = chargers.size() + (chargers.size() == 1 ? " charger" : " chargers");
+        String acName = chargerName(ac), dcName = chargerName(dc);
+        return ac.equals(dc) ? count + " · " + acName + " for AC and DC" : count + " · AC " + acName + " · DC " + dcName;
+    }
+
+    String prefsSummary() {
+        return currency + " · loss " + orZero(lossAc) + " / " + orZero(lossDc) + " % · alert "
+                + (alertSoc == 0 ? "off" : alertSoc + " %");
+    }
+
+    String totalsSummary() {
+        if ("off".equals(resetMode)) return "Auto reset off";
+        String day = resetDay >= 31 ? "last day" : "day " + resetDay;
+        return "Auto reset " + ("months".equals(resetMode) ? "every " + resetMonths + " months" : "monthly") + ", " + day;
+    }
+
+    private String chargerName(String id) {
+        for (Charger c : chargers) {
+            if (c.id.equals(id)) return c.name == null || c.name.isBlank() ? "Unnamed" : c.name.trim();
+        }
+        return "none";
+    }
+
+    private static String orZero(String v) { return v == null || v.isEmpty() ? "0" : v; }
+
     /** A setting as the field shows it: empty for 0, no trailing zeros. */
     static String shown(double v) {
         if (Double.isNaN(v) || Double.isInfinite(v) || v == 0) return "";

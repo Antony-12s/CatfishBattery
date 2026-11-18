@@ -33,8 +33,8 @@ import java.util.TimeZone;
 import java.util.function.IntConsumer;
 
 /**
- * Settings page, native port of the WebView Settings page: chargers and their prices (AC / DC defaults, TOU) on the
- * left, currency, charging losses, budget, charge alert and the totals reset on the right, Save at the bottom.
+ * Settings page: a summary card per section on the left (Chargers & prices, Preferences, Totals & reset, About), each
+ * showing its current values, and the open section on the right; Save at the bottom.
  * Loads BatteryDataHub.settingsJson(), saves with saveSettings(json); BatterySettings.clean stays the validation and
  * fields it would change show the saved value inline. Edits live in a {@link SettingsForm} until Save, so they
  * survive focus changes and switching tabs.
@@ -43,7 +43,13 @@ final class SettingsPage extends FrameLayout {
     private static final String TAG = "CatfishBattery";
 
     private final ChargingUi ui;
-    private final LinearLayout chargersBox, prefs;
+    private static final String[] SECTIONS = { "Chargers & prices", "Preferences", "Totals & reset", "About" };
+    private static final String[] ICONS = { "\u26A1\uFE0E", "\u2699\uFE0E", "\u21BB", "i" };
+
+    private final LinearLayout chargersBox, prefs, totals;
+    private final View[] items = new View[SECTIONS.length], panes;
+    private final TextView[] summaries = new TextView[SECTIONS.length];
+    private final ScrollView detail;
     private final TextView state;
     private final Button save;
     private final Map<String, TextView> errors = new HashMap<>();
@@ -62,42 +68,44 @@ final class SettingsPage extends FrameLayout {
         LinearLayout card = ui.card();
         addView(card, new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        LinearLayout head = ui.column();
-        head.setMinimumHeight(ui.dp(76));
-        head.addView(ui.title("Settings"));
-        TextView kicker = ui.kicker();
-        ChargingUi.set(kicker, "Chargers and prices first, the rest on the right");
-        head.addView(kicker);
-        LinearLayout.LayoutParams headLp = ChargingUi.fillWidth();
-        headLp.bottomMargin = ui.dp(20);
-        card.addView(head, headLp);
+        LinearLayout body = ui.row();
+        body.setGravity(Gravity.NO_GRAVITY);
+        card.addView(body, ChargingUi.fillHeight());
 
-        LinearLayout two = ui.row();
-        two.setGravity(Gravity.NO_GRAVITY);
-        card.addView(two, ChargingUi.fillHeight());
+        // left: one card per section with its current values, so the state reads without opening it
+        LinearLayout list = ui.column();
+        for (int i = 0; i < SECTIONS.length; i++) {
+            final int at = i;
+            summaries[i] = ui.oneLine(ui.text(20, ui.muted, 400));
+            items[i] = item(ICONS[i], SECTIONS[i], summaries[i]);
+            items[i].setOnClickListener(v -> show(at));
+            LinearLayout.LayoutParams lp = ChargingUi.fillWidth();
+            if (i > 0) lp.topMargin = ui.dp(12);
+            list.addView(items[i], lp);
+        }
+        body.addView(list, new LinearLayout.LayoutParams(ui.dp(560), ViewGroup.LayoutParams.MATCH_PARENT));
+        body.addView(ui.space(24, 1));
 
-        // left pane: chargers
-        ScrollView leftScroll = pane();
-        LinearLayout left = ui.column();
-        leftScroll.addView(left, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        left.addView(h3("Chargers", "tap a badge to make a charger the AC or DC default"));
+        // right: the open section
+        detail = pane();
+        LinearLayout sections = ui.column();
+        detail.addView(sections, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        body.addView(detail, ChargingUi.weight(1f));
+
+        LinearLayout chargers = ui.column();
+        chargers.addView(h3("Chargers & prices", "TOU: weekdays 09:00–22:00 on-peak, nights and weekends off-peak. A charge "
+                + "while parked has no known time and counts as off-peak. Public holidays are not known."));
         chargersBox = ui.column();
-        left.addView(chargersBox, ChargingUi.fillWidth());
+        chargers.addView(chargersBox, ChargingUi.fillWidth());
         Button add = ui.button("+ Add charger", 24, false);
         add.setOnClickListener(v -> addCharger());
         LinearLayout.LayoutParams addLp = ChargingUi.wrap();
         addLp.topMargin = ui.dp(20);
-        left.addView(add, addLp);
-        left.addView(hint("TOU prices: weekdays 09:00–22:00 on-peak, nights and weekends off-peak. A charge while parked "
-                + "has no known time and counts as off-peak. Public holidays are not known."));
-        two.addView(leftScroll, ChargingUi.weight(1.35f));
-        two.addView(ui.space(24, 1));
-
-        // right pane: preferences
-        ScrollView rightScroll = pane();
+        chargers.addView(add, addLp);
         prefs = ui.column();
-        rightScroll.addView(prefs, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        two.addView(rightScroll, ChargingUi.weight(1f));
+        totals = ui.column();
+        panes = new View[] { chargers, prefs, totals, about() };
+        for (View p : panes) sections.addView(p, ChargingUi.fillWidth());
 
         // save bar
         LinearLayout bar = ui.row();
@@ -110,9 +118,158 @@ final class SettingsPage extends FrameLayout {
         save.setOnClickListener(v -> save());
         bar.addView(save);
         LinearLayout.LayoutParams barLp = ChargingUi.fillWidth();
-        barLp.topMargin = ui.dp(24);
+        barLp.topMargin = ui.dp(20);
         card.addView(bar, barLp);
         setState("Loading…", ui.muted);
+        saveEnabled(false);
+        ChargingUi.set(summaries[3], "v" + BuildConfig.VERSION_NAME + " · built " + UiFormat.date(BuildConfig.BUILD_TIME, TimeZone.getDefault()));
+        show(0);
+    }
+
+    private LinearLayout item(String icon, String title, TextView summary) {
+        LinearLayout row = ui.row();
+        row.setPadding(ui.dp(20), ui.dp(18), ui.dp(16), ui.dp(18));
+        row.setClickable(true);
+        row.setFocusable(true);
+        TextView ic = ui.text(28, ui.accent, 700);
+        ic.setGravity(Gravity.CENTER);
+        ChargingUi.set(ic, icon);
+        ic.setBackground(ui.box(ui.night ? 0x1FE2C08D : 0x142368C5, 0, 16));
+        row.addView(ic, new LinearLayout.LayoutParams(ui.dp(64), ui.dp(64)));
+        LinearLayout text = ui.column();
+        TextView t = ui.text(26, ui.text, 700);
+        ChargingUi.set(t, title);
+        text.addView(t);
+        summary.setPadding(0, ui.dp(8), 0, 0);
+        text.addView(summary);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        lp.leftMargin = ui.dp(18);
+        row.addView(text, lp);
+        TextView chevron = ui.text(34, ui.muted, 400);
+        ChargingUi.set(chevron, "›");
+        row.addView(chevron);
+        row.setContentDescription(title);
+        return row;
+    }
+
+    /** Opens one section on the right and marks its card. */
+    private void show(int at) {
+        for (int i = 0; i < panes.length; i++) {
+            boolean on = i == at;
+            panes[i].setVisibility(on ? VISIBLE : GONE);
+            items[i].setBackground(ui.box(on ? (ui.night ? 0x14E2C08D : 0x0F2368C5) : ui.panel, on ? ui.accent : ui.panelEdge, 20));
+            items[i].setSelected(on);
+        }
+        detail.scrollTo(0, 0);
+    }
+
+    private void summaries() {
+        if (form == null) return;
+        ChargingUi.set(summaries[0], form.chargersSummary());
+        ChargingUi.set(summaries[1], form.prefsSummary());
+        ChargingUi.set(summaries[2], form.totalsSummary());
+    }
+
+    private void saveEnabled(boolean on) {
+        save.setEnabled(on);
+        save.setAlpha(on ? 1f : .45f);
+    }
+
+    /** Nothing edited: say whether these are saved settings or the defaults. */
+    private void idle() {
+        boolean wasSaved = saved != null && saved.optBoolean("_saved");
+        setState(wasSaved ? "✓  Saved" : "Default settings", wasSaved ? ui.good : ui.muted);
+        saveEnabled(false);
+    }
+
+    // ---- About ----
+
+    /** Set to the owner's https://ko-fi.com/<name> to show the Ko-fi card with its QR code; empty hides it. */
+    static final String KOFI_URL = "https://ko-fi.com/catfishfarm";
+
+    private LinearLayout about() {
+        LinearLayout row = ui.row();
+        row.setGravity(Gravity.TOP);
+        LinearLayout info = ui.column();
+        info.addView(h3("Catfish Battery", "Battery, charging and health for the Geely EX5. Read-only: it never writes to the car."));
+        fact(info, "Version", BuildConfig.VERSION_NAME + " (build " + BuildConfig.VERSION_CODE + ")", false);
+        fact(info, "Built", UiFormat.dateTime(BuildConfig.BUILD_TIME, TimeZone.getDefault()), false);
+        fact(info, "Commit", BuildConfig.GIT_COMMIT, true);
+        fact(info, "Signer", signer(), true);
+        fact(info, "Source", "github.com/Antony-12s/CatfishBattery", true);
+        row.addView(info, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        if (!KOFI_URL.isEmpty()) {
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ui.dp(400), ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.leftMargin = ui.dp(28);
+            row.addView(kofi(), lp);
+        }
+        return row;
+    }
+
+    private void fact(LinearLayout into, String label, String value, boolean mono) {
+        if (into.getChildCount() > 1) into.addView(ui.divider(false));
+        LinearLayout row = ui.row();
+        row.setPadding(0, ui.dp(16), 0, ui.dp(16));
+        TextView k = ui.text(22, ui.muted, 500);
+        ChargingUi.set(k, label);
+        row.addView(k, new LinearLayout.LayoutParams(ui.dp(190), ViewGroup.LayoutParams.WRAP_CONTENT));
+        TextView v = ui.text(mono ? 22 : 24, ui.text, 500);
+        if (mono) v.setTypeface(android.graphics.Typeface.MONOSPACE);
+        ChargingUi.set(v, value);
+        row.addView(v, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        into.addView(row, ChargingUi.fillWidth());
+    }
+
+    /** The first 8 and last 4 hex digits of the APK signer's SHA-256, as in the release notes. */
+    private String signer() {
+        try {
+            android.content.pm.PackageInfo p = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(),
+                    android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES);
+            byte[] d = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(p.signingInfo.getApkContentsSigners()[0].toByteArray());
+            String hex = String.format("%064x", new java.math.BigInteger(1, d));
+            return hex.substring(0, 8) + "…" + hex.substring(60);
+        } catch (Exception e) {
+            return UiFormat.MISSING;
+        }
+    }
+
+    private View kofi() {
+        LinearLayout c = ui.column();
+        c.setGravity(Gravity.CENTER_HORIZONTAL);
+        c.setPadding(ui.dp(24), ui.dp(24), ui.dp(24), ui.dp(24));
+        c.setBackground(ui.box(ui.night ? 0x1AE2C08D : 0x0F2368C5, ui.night ? 0x59E2C08D : ui.panelEdge, 22));
+        TextView t = ui.text(26, ui.text, 700);
+        ChargingUi.set(t, "Buy me a coffee");
+        c.addView(t);
+        TextView s = ui.text(20, ui.muted, 400);
+        s.setGravity(Gravity.CENTER);
+        s.setPadding(0, ui.dp(8), 0, ui.dp(16));
+        ChargingUi.set(s, "Scan with your phone to support the app on Ko-fi.");
+        c.addView(s);
+        android.widget.ImageView qr = new android.widget.ImageView(getContext());
+        qr.setImageBitmap(qr(KOFI_URL, 400));
+        qr.setBackground(ui.box(0xFFFFFFFF, 0, 16));
+        qr.setPadding(ui.dp(14), ui.dp(14), ui.dp(14), ui.dp(14));
+        qr.setContentDescription("Ko-fi QR code");
+        c.addView(qr, new LinearLayout.LayoutParams(ui.dp(260), ui.dp(260)));
+        TextView u = ui.text(21, ui.accent, 600);
+        u.setPadding(0, ui.dp(14), 0, 0);
+        ChargingUi.set(u, KOFI_URL.replaceFirst("^https?://", ""));
+        c.addView(u);
+        return c;
+    }
+
+    private static android.graphics.Bitmap qr(String text, int size) {
+        try {
+            com.google.zxing.common.BitMatrix m = new com.google.zxing.qrcode.QRCodeWriter().encode(text,
+                    com.google.zxing.BarcodeFormat.QR_CODE, size, size, Map.of(com.google.zxing.EncodeHintType.MARGIN, 0));
+            int[] px = new int[size * size];
+            for (int y = 0; y < size; y++) for (int x = 0; x < size; x++) px[y * size + x] = m.get(x, y) ? 0xFF000000 : 0xFFFFFFFF;
+            return android.graphics.Bitmap.createBitmap(px, size, size, android.graphics.Bitmap.Config.ARGB_8888);
+        } catch (com.google.zxing.WriterException e) {
+            return null;
+        }
     }
 
     /** Called when the page becomes visible and then periodically; loads once, then keeps the edits. */
@@ -138,7 +295,7 @@ final class SettingsPage extends FrameLayout {
                 loading = false;
                 if (dirty || saving) return; // the driver started editing meanwhile
                 if (!apply(j)) { if (form == null) setState("Settings unavailable", ui.danger); return; }
-                setState(saved.optBoolean("_saved") ? "Saved" : "Not saved yet", saved.optBoolean("_saved") ? ui.good : ui.warn);
+                idle();
             });
         });
     }
@@ -165,7 +322,7 @@ final class SettingsPage extends FrameLayout {
         if (form == null || saving) return;
         clearFocus();
         saving = true;
-        save.setEnabled(false);
+        saveEnabled(false);
         final String json = form.toJson().toString();
         ChargingUi.background(() -> {
             String reply;
@@ -174,12 +331,12 @@ final class SettingsPage extends FrameLayout {
             final String r = reply;
             post(() -> {
                 saving = false;
-                save.setEnabled(true);
                 if (r != null && apply(r)) {
-                    setState("Saved", ui.good);
+                    idle();
                     Toast.makeText(getContext(), "Settings saved", Toast.LENGTH_SHORT).show();
                 } else {
                     setState("Not saved, try again", ui.danger);
+                    saveEnabled(true);
                 }
             });
         });
@@ -187,8 +344,10 @@ final class SettingsPage extends FrameLayout {
 
     private void changed() {
         dirty = true;
-        setState("Unsaved changes", ui.warn);
+        setState("●  Unsaved changes", ui.warn);
+        saveEnabled(!saving);
         showIssues();
+        summaries();
     }
 
     private void setState(String text, int color) {
@@ -209,6 +368,7 @@ final class SettingsPage extends FrameLayout {
         binding = false;
         markDefaults();
         showIssues();
+        summaries();
     }
 
     private void addRow(SettingsForm.Charger c) {
@@ -321,7 +481,9 @@ final class SettingsPage extends FrameLayout {
 
     private void buildPrefs() {
         prefs.removeAllViews();
-        prefs.addView(h3("Preferences", null));
+        prefs.addView(h3("Preferences", "Cost, budget and alerts."));
+        totals.removeAllViews();
+        totals.addView(h3("Totals & reset", "Used, charged and regen totals and their cost. Charge history and settings are never cleared."));
 
         String[] codes = ChargingCost.CURRENCY.keySet().toArray(new String[0]);
         String[] labels = new String[codes.length];
@@ -330,15 +492,15 @@ final class SettingsPage extends FrameLayout {
             labels[i] = codes[i] + " · " + ChargingCost.CURRENCY.get(codes[i]);
             if (codes[i].equals(form.currency)) at = i;
         }
-        prefs.addView(prow("Currency", null, spinner(labels, at, i -> { form.currency = codes[i]; units(); changed(); })));
+        prow(prefs, "Currency", "every price and total follows it", spinner(labels, at, i -> { form.currency = codes[i]; units(); changed(); }));
 
         LinearLayout pair = ui.row();
         pair.addView(numberField("lossAc", form.lossAc, "% AC", "AC charging loss", s -> form.lossAc = s));
         pair.addView(ui.space(12, 1));
         pair.addView(numberField("lossDc", form.lossDc, "% DC", "DC charging loss", s -> form.lossDc = s));
-        prefs.addView(prow("Charging loss", "what the pack does not keep; every cost grows by it", pair));
-        prefs.addView(prow("Monthly budget", "History shows the month against it; 0 = none",
-                numberField("budget", form.budget, null, "Monthly budget", s -> form.budget = s)));
+        prow(prefs, "Charging loss", "what the pack does not keep; every cost grows by it", pair);
+        prow(prefs, "Monthly budget", "History shows the month against it; 0 = none",
+                numberField("budget", form.budget, null, "Monthly budget", s -> form.budget = s));
 
         String[] alerts = new String[SettingsForm.ALERT_STEPS.length];
         int alertAt = 0;
@@ -347,12 +509,12 @@ final class SettingsPage extends FrameLayout {
             alerts[i] = p == 0 ? "Off" : p + " %";
             if (p == form.alertSoc) alertAt = i;
         }
-        prefs.addView(prow("Charge alert", "a message on screen once per charge",
-                spinner(alerts, alertAt, i -> { form.alertSoc = SettingsForm.ALERT_STEPS[i]; changed(); })));
+        prow(prefs, "Charge alert", "a message on screen once per charge",
+                spinner(alerts, alertAt, i -> { form.alertSoc = SettingsForm.ALERT_STEPS[i]; changed(); }));
 
         Button reset = ui.button("Reset now", 22, false);
         reset.setOnClickListener(v -> resetNow(reset));
-        prefs.addView(prow("Reset totals", "Used, charged, regen and their cost; charge history stays", reset));
+        prow(totals, "Reset now", "asks for a second tap", reset);
 
         String[] modes = { "off", "monthly", "months" };
         int modeAt = Math.max(0, java.util.Arrays.asList(modes).indexOf(form.resetMode));
@@ -372,9 +534,9 @@ final class SettingsPage extends FrameLayout {
         auto.addView(monthsSpinner);
         auto.addView(ui.space(12, 1));
         auto.addView(daySpinner);
-        LinearLayout autoRow = prow("Auto reset", "Off", auto);
+        LinearLayout autoRow = prow(totals, "Auto reset", "", auto);
         nextResetLine = (TextView) ((LinearLayout) autoRow.getChildAt(0)).getChildAt(1);
-        prefs.addView(autoRow);
+        nextResetLine.setVisibility(VISIBLE);
         resetShown();
     }
 
@@ -382,7 +544,9 @@ final class SettingsPage extends FrameLayout {
         if (form == null || nextResetLine == null) return;
         daySpinner.setVisibility("off".equals(form.resetMode) ? GONE : VISIBLE);
         monthsSpinner.setVisibility("months".equals(form.resetMode) ? VISIBLE : GONE);
-        ChargingUi.set(nextResetLine, form.nextResetText(saved, nextReset, TimeZone.getDefault()));
+        ChargingUi.set(nextResetLine, "off".equals(form.resetMode) ? "totals keep counting"
+                : form.nextResetText(saved, nextReset, TimeZone.getDefault()));
+        summaries();
     }
 
     /** Two taps: the first arms the button for 4 s, the second clears the totals (not history or settings). */
@@ -448,6 +612,7 @@ final class SettingsPage extends FrameLayout {
             for (int i = 0; i < 2; i++) {
                 TextView b = (TextView) pair[i];
                 ui.pill(b, on[i], 14);
+                ChargingUi.set(b, (on[i] ? "✓  " : "") + (i == 0 ? "AC default" : "DC default"));
                 if (!on[i]) b.setBackground(ui.box(0, edge, 14));
                 b.setSelected(on[i]);
             }
@@ -504,16 +669,8 @@ final class SettingsPage extends FrameLayout {
         return box;
     }
 
-    private TextView hint(String text) {
-        TextView t = ui.text(20, ui.muted2, 400);
-        t.setLineSpacing(0, 1.5f);
-        t.setPadding(0, ui.dp(18), 0, 0);
-        ChargingUi.set(t, text);
-        return t;
-    }
-
     /** A preference row: bold label and helper on the left, the control on the right. */
-    private LinearLayout prow(String label, String small, View control) {
+    private LinearLayout prow(LinearLayout into, String label, String small, View control) {
         LinearLayout row = ui.row();
         row.setPadding(0, ui.dp(16), 0, ui.dp(16));
         LinearLayout text = ui.column();
@@ -530,7 +687,8 @@ final class SettingsPage extends FrameLayout {
         LinearLayout.LayoutParams lp = ChargingUi.wrap();
         lp.leftMargin = ui.dp(20);
         row.addView(control, lp);
-        if (prefs.getChildCount() > 1) prefs.addView(ui.divider(false));
+        if (into.getChildCount() > 1) into.addView(ui.divider(false));
+        into.addView(row, ChargingUi.fillWidth());
         return row;
     }
 

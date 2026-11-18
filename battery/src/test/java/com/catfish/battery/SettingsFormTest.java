@@ -133,4 +133,24 @@ public class SettingsFormTest {
         f.resetMode = "off";
         assertEquals("Off", f.nextResetText(saved, null, tz));
     }
+
+    @Test
+    public void summariesShowEachSectionAtAGlance() throws Exception {
+        SettingsForm f = SettingsForm.from(new JSONObject(SAVED));
+        assertEquals("2 chargers \u00b7 AC Home \u00b7 DC PEA VOLTA", f.chargersSummary());
+        assertEquals("USD \u00b7 loss 10 / 0 % \u00b7 alert 80 %", f.prefsSummary());
+        assertEquals("Auto reset every 3 months, last day", f.totalsSummary());
+
+        f.dc = "home";
+        f.chargers.remove(1);
+        f.chargers.get(0).name = " ";
+        f.alertSoc = 0;
+        f.resetMode = "monthly";
+        f.resetDay = 1;
+        assertEquals("1 charger \u00b7 Unnamed for AC and DC", f.chargersSummary());
+        assertEquals("USD \u00b7 loss 10 / 0 % \u00b7 alert off", f.prefsSummary());
+        assertEquals("Auto reset monthly, day 1", f.totalsSummary());
+        f.resetMode = "off";
+        assertEquals("Auto reset off", f.totalsSummary());
+    }
 }

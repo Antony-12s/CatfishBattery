@@ -50,4 +50,12 @@ public class UiFormatTest {
         assertEquals("120 kW", UiFormat.power(120000));
         assertEquals("--", UiFormat.power(Double.NaN));
     }
+
+    @Test public void dateAndDateTimeForTheBuildStamp() {
+        java.util.TimeZone bkk = java.util.TimeZone.getTimeZone("Asia/Bangkok");
+        long t = 1795002360000L; // 2026-11-18 11:46 UTC = 18:46 in Bangkok
+        assertEquals("18 Nov 2026", UiFormat.date(t, bkk));
+        assertEquals("18 Nov 2026, 18:46", UiFormat.dateTime(t, bkk));
+        assertEquals("1 Jan 2027, 06:05", UiFormat.dateTime(1798758300000L, bkk));
+    }
 }

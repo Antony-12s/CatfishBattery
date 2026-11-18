@@ -37,4 +37,19 @@ final class UiFormat {
         if (a >= 1000) return fixed(watts / 1000, 1, " kW");
         return fixed(Math.round(watts), 0, " W");
     }
+
+    /** "18 Nov 2026" in the given zone. */
+    static String date(long millis, java.util.TimeZone tz) {
+        java.util.Calendar c = java.util.Calendar.getInstance(tz, Locale.US);
+        c.setTimeInMillis(millis);
+        return c.get(java.util.Calendar.DAY_OF_MONTH) + " " + ChargingModel.MONTHS[c.get(java.util.Calendar.MONTH)].substring(0, 3)
+                + " " + c.get(java.util.Calendar.YEAR);
+    }
+
+    /** "18 Nov 2026, 18:46" in the given zone. */
+    static String dateTime(long millis, java.util.TimeZone tz) {
+        java.util.Calendar c = java.util.Calendar.getInstance(tz, Locale.US);
+        c.setTimeInMillis(millis);
+        return date(millis, tz) + String.format(Locale.US, ", %02d:%02d", c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE));
+    }
 }

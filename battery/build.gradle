@@ -14,7 +14,12 @@ android {
         targetSdk 33
         versionCode 6
         versionName "1.5"
+        // shown in Settings > About
+        buildConfigField "long", "BUILD_TIME", "${System.currentTimeMillis()}L"
+        buildConfigField "String", "GIT_COMMIT", "\"${providers.exec { commandLine 'git', 'rev-parse', '--short', 'HEAD' }.standardOutput.asText.get().trim()}\""
     }
+
+    buildFeatures { buildConfig true }
 
     buildTypes {
         release {
@@ -45,6 +50,7 @@ dependencies {
     implementation 'io.grpc:grpc-stub:1.62.2'
     implementation 'io.grpc:grpc-protobuf-lite:1.62.2'
     implementation 'com.google.protobuf:protobuf-javalite:3.21.7'
+    implementation 'com.google.zxing:core:3.5.3' // Ko-fi QR in Settings > About
     compileOnly 'org.apache.tomcat:annotations-api:6.0.53'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20240303'
