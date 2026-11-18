@@ -39,6 +39,23 @@ Items noted for a later batch of fixes. Not started.
   node boxes and labels with enough contrast; keep the 1180x470 geometry,
   anchors and flow paths unchanged (AGENTS.md). Check both themes in the
   layout tool and on the car.
+- **Make every page native (no WebView).** Owner wants the content below the
+  native tab bar (Status with the 3D schematic and Cells view, Charging,
+  History, Settings) rebuilt as native Android views instead of the WebView
+  HTML/SVG in `BatteryWebPages.java` (~117 KB of HTML/CSS/JS in Java strings)
+  and `BatteryWindowStyle.java`. Scope notes:
+  - Largest item in the backlog: a full UI rewrite. The schematic becomes a
+    custom `View` drawing the same 1180x470 geometry, sensor anchors, energy
+    flow paths and moving dots on a `Canvas`, plus the Cells switch, tooltips,
+    the history chart, charge sessions and the Settings forms.
+  - AGENTS.md / DECISIONS.md: keep the original schematic look and geometry,
+    top navigation, system bar / climate dock fit, real/unavailable telemetry.
+    DECISIONS.md must record the WebView-to-native change.
+  - Tests and tools built on HTML must be replaced: `BatteryWebPagesTest`,
+    `BatteryPageExport` + `check-layout.mjs` (browser layout checks), the
+    emulator sweep's tap targets.
+  - Do it before items 1-4, or do 1-4 inside the native rewrite: fixing them in
+    the WebView first would be thrown away.
 
 ## Car verification
 
