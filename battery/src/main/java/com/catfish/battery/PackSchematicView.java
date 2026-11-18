@@ -44,7 +44,7 @@ final class PackSchematicView extends View {
     private final Path sparkLine = new Path(), sparkArea = new Path();
     private float sparkEndX, sparkEndY;
     private SocTrend trend;
-    private final Point shadow = iso(180,98,0), front = iso(-1,170,20);
+    private final Point front = iso(-1,170,20);
     private final Path busPositive = line(iso(54,87,45),iso(360,87,45));
     private final Path busNegative = line(iso(54,92,45),iso(360,92,45));
     private SchematicData data = new SchematicData(null);
@@ -97,8 +97,6 @@ final class PackSchematicView extends View {
         paint.setShader(null);
         round(canvas,LEFT,0,LEFT+WIDTH,HEIGHT,12,0,tone(0x14e2c08d,palette.line));
         drawSystem(canvas);
-        fill(tone(0x66000000,0x22788ea3));
-        canvas.drawOval(shadow.x()-328,shadow.y()-44,shadow.x()+328,shadow.y()+96,paint);
         drawBox(canvas,base,tone(0xff26323f,0xffd6e2ed),tone(0xff141a24,0xffb7c8d9),
                 tone(0xff0d1119,0xffa5b8cb),tone(0xff51627d,0xff829bb3),.5f);
         for (DrawableBox box : solids) {
