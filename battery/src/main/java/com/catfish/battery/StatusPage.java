@@ -384,6 +384,13 @@ final class StatusPage extends FrameLayout {
         g.setBaselineAligned(false);
         g.setBackground(s.round(s.bgDeep, 18, s.line, 1));
         g.setClipToOutline(true);
+        // a bare View divider with MATCH_PARENT height inside this wrap_content row measures to all the space left
+        // and pushed the schematic to zero height; LinearLayout dividers take the row's real height instead
+        android.graphics.drawable.GradientDrawable line = new android.graphics.drawable.GradientDrawable();
+        line.setColor(s.lineSoft);
+        line.setSize(Math.max(1, s.px(1)), 1);
+        g.setDividerDrawable(line);
+        g.setShowDividers(LinearLayout.SHOW_DIVIDER_MIDDLE);
         return g;
     }
 
@@ -401,11 +408,6 @@ final class StatusPage extends FrameLayout {
         cell.addView(l);
         cell.addView(v, margins(wrap(), 0, s.px(6), 0, 0));
         if (note != null) cell.addView(note, margins(wrap(), 0, s.px(4), 0, 0));
-        if (group.getChildCount() > 0) {
-            View divider = new View(c);
-            divider.setBackgroundColor(s.lineSoft);
-            group.addView(divider, new LinearLayout.LayoutParams(Math.max(1, s.px(1)), ViewGroup.LayoutParams.MATCH_PARENT));
-        }
         group.addView(cell, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1));
         return v;
     }
