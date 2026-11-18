@@ -132,6 +132,22 @@ final class PackSchematicView extends View {
         canvas.restore();
     }
 
+    /** Small rotating arc while the BECM SOH read runs (about 1-2 s); keeps animating only while shown. */
+    private void spinner(Canvas canvas, float cx, float cy, float r) {
+        float sweep = (android.os.SystemClock.uptimeMillis() % 900L) * 360f / 900f;
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(3f);
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        paint.setColor(muted());
+        paint.setAlpha(70);
+        canvas.drawCircle(cx,cy,r,paint);
+        paint.setColor(tone(CHAMPAGNE,palette.accent));
+        canvas.drawArc(cx-r,cy-r,cx+r,cy+r,sweep,100f,false,paint);
+        paint.setStrokeCap(Paint.Cap.BUTT);
+        paint.setStyle(Paint.Style.FILL);
+        postInvalidateOnAnimation();
+    }
+
     private void drawSystem(Canvas canvas) {
         int dim = tone(0x80e2c08d,0xff8298af), active = tone(CHAMPAGNE,palette.accent);
         boolean[] enabled = {data.hvOn,data.dcOn,data.dcOn,data.charging};
@@ -147,7 +163,8 @@ final class PackSchematicView extends View {
         // SOH is its own column at a fixed spot left of the SOC hero, so it never jumps with the SOC width
         float sohRight = 1258 - measure("100.0%",46,socFont) - 30;
         label(canvas,"SOH",sohRight,46,13,kicker(),MONO,Paint.Align.RIGHT);
-        label(canvas,data.soh,sohRight,72,24,ink(),BOLD,Paint.Align.RIGHT);
+        if (data.sohReading) spinner(canvas,sohRight-14,63,11);
+        else label(canvas,data.soh,sohRight,72,24,ink(),BOLD,Paint.Align.RIGHT);
         label(canvas,data.range,1258,98,17,muted(),NORMAL,Paint.Align.RIGHT);
         float rangeWidth = data.range.isEmpty() ? 0 : measure(data.range,17,NORMAL)+10;
         label(canvas,data.packPower,1258-rangeWidth,98,20,data.powerIn ? palette.good : ink(),BOLD,Paint.Align.RIGHT);

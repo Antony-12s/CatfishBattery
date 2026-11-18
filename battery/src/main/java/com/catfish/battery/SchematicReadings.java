@@ -65,7 +65,10 @@ final class SchematicReadings {
                 + (Double.isFinite(temp) ? UiFormat.fixed(temp,0," °C") : "not seen yet");
     }
 
-    static String soh(double pct) { return UiFormat.percent2(pct); }
+    /** BECM DID 496D comes in 0.01 % steps, canspi EgyCdn in 0.5 % steps: show only the digits the source has. */
+    static String soh(double pct, String source) {
+        return SohRecorder.BECM.equals(source) ? UiFormat.percent2(pct) : UiFormat.fixed(pct,1," %");
+    }
 
     static String chargeNote(double kwh, double minutes) {
         return UiFormat.fixed(kwh,1," kWh") + " in · " + UiFormat.duration(minutes) + " left";

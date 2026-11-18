@@ -62,3 +62,13 @@ Do not resolve signer mismatches by uninstalling or clearing data.
   settings. A schedule change records `resetAnchor`, so totals counted before
   it are not wiped by an overdue date. A missed reset (head unit asleep) runs
   once on wake, dated the last due day. Day 31 means the month's last day.
+
+- BECM SOH read (2026-11-18, approved by the user): when the app opens, at
+  most once per local calendar day and only in Park, the app reads the BECM's
+  own SOH (UDS 22 49 6D) through Dxapp's VehicleDiagIF middleware. This lifts
+  the earlier "no automatic diagnostic requests" rule for this one read only.
+  Guard: GEAR_SELECTION and CURRENT_GEAR re-read every 100 ms, abort when a
+  fresh read is not Park; skip when the channel is busy; one request; always
+  release the channel. The page shows a spinner during the read. BECM rows
+  (0.01 % steps) are shown with two decimals; canspi HvBattEgyCdn (0.5 %
+  steps) with one, and only fills in when no BECM read is under a day old.

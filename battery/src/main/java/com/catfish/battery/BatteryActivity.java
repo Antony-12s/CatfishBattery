@@ -70,6 +70,7 @@ public final class BatteryActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         resumed = true;
+        BatteryDataHub.readBecmSohIfDue();
         poller = Executors.newSingleThreadScheduledExecutor();
         setPageVisible(page, true);
         ticks = 0;

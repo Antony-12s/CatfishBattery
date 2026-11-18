@@ -172,4 +172,73 @@ public class SohRecorderTest {
         try (ServerSocket s = new ServerSocket(0)) { port = s.getLocalPort(); }
         assertTrue(Double.isNaN(SohRecorder.fetchEgyCdn(port, 500)));
     }
+
+    // ---- BECM DID 496D, read once per day when the app opens in Park ----
+
+    private static SohRecorder becmRecorder(File dir, AtomicReference<Integer> gear) {
+        return new SohRecorder(dir, gear::get, () -> 96.5);
+    }
+
+    @Test
+    public void becmReadsOncePerDayOnlyInParkAndKeepsTheSource() throws Exception {
+        File dir = tempDir();
+        AtomicReference<Integer> gear = new AtomicReference<>(1);
+        int[] reads = {0};
+        SohRecorder r = becmRecorder(dir, gear);
+        r.becmTick(T0, () -> { reads[0]++; return 96.44; });
+        assertEquals(0, reads[0]);                       // not in P: no request at all
+        gear.set(4);
+        r.becmTick(T0 + 1000, () -> { reads[0]++; return 96.44; });
+        r.becmTick(T0 + 2000, () -> { reads[0]++; return 96.44; });
+        assertEquals(1, reads[0]);                       // once per day
+        JSONObject json = new JSONObject(r.json());
+        assertEquals(96.44, json.getDouble("pct"), 0);
+        assertEquals("becm", json.getString("source"));
+        assertEquals("ok", json.getString("state"));
+        assertEquals("becm", new SohRecorder(dir, gear::get, () -> 96.5).entries().get(0).source); // kept on disk
+    }
+
+    @Test
+    public void failedBecmReadIsRetriedOnTheNextOpenAndRecordsNothing() throws Exception {
+        AtomicReference<Integer> gear = new AtomicReference<>(4);
+        SohRecorder r = becmRecorder(tempDir(), gear);
+        r.becmTick(T0, () -> { throw new java.io.IOException("Middleware did not become ready"); });
+        assertEquals(0, r.entries().size());
+        assertEquals("becm failed", new JSONObject(r.json()).getString("state"));
+        r.becmTick(T0 + 1000, () -> 96.44);
+        assertEquals(1, r.entries().size());
+    }
+
+    @Test
+    public void stateIsReadingWhileTheRequestRuns() throws Exception {
+        AtomicReference<Integer> gear = new AtomicReference<>(4);
+        SohRecorder r = becmRecorder(tempDir(), gear);
+        String[] during = {null};
+        r.becmTick(T0, () -> { during[0] = new JSONObject(r.json()).getString("state"); return 96.44; });
+        assertEquals("reading", during[0]);
+    }
+
+    @Test
+    public void canspiDoesNotOverwriteABecmReadingFromTheLastDay() throws Exception {
+        AtomicReference<Integer> gear = new AtomicReference<>(4);
+        int[] fetches = {0};
+        SohRecorder r = new SohRecorder(tempDir(), gear::get, () -> { fetches[0]++; return 96.5; });
+        r.becmTick(T0, () -> 96.44);
+        r.tick(T0 + 60000);
+        assertEquals(0, fetches[0]);
+        assertEquals(96.44, new JSONObject(r.json()).getDouble("pct"), 0);
+        gear.set(1); r.tick(T0 + DAY); gear.set(4);
+        r.tick(T0 + DAY + 1);                           // no BECM read for a day: canspi fills in
+        assertEquals(1, fetches[0]);
+        assertEquals("canspi", new JSONObject(r.json()).getString("source"));
+    }
+
+    @Test
+    public void oldTwoColumnHistoryLoadsAsCanspi() throws Exception {
+        File dir = tempDir();
+        Files.write(new File(dir, "soh.csv").toPath(), ("ts,soh_pct\n" + T0 + ",96.50\n").getBytes());
+        SohRecorder r = new SohRecorder(dir, () -> 4, () -> 96.5);
+        assertEquals("canspi", r.entries().get(0).source);
+        assertEquals("canspi", new JSONObject(r.json()).getString("source"));
+    }
 }

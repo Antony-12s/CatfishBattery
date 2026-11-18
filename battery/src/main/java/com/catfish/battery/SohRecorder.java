@@ -24,13 +24,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
- * Battery state of health, recorded once per park. The value is canspi HvBattEgyCdn, which matched the BECM's
- * dealer SOH (DID 496D: 96.44 % against 96.5 %) on 2026-11-18. It is read only while GEAR_SELECTION is Park, from one
- * subscribe-only snapshot of the head unit's local nanomq broker. History is kept in soh.csv.
+ * Battery state of health. Two sources, both only while GEAR_SELECTION is Park:
+ * - "becm": the BECM's own SOH (DID 496D, 0.01 % steps), read once per day when the app opens (BecmSoh);
+ * - "canspi": HvBattEgyCdn (0.5 % steps) from one subscribe-only snapshot of the local nanomq broker, once per park.
+ *   It matched the BECM (96.5 % against 96.44 %) on 2026-11-18 and fills in when no BECM read is less than a day old.
+ * History is kept in soh.csv (ts,soh_pct,source; older rows without a source are canspi).
  */
 final class SohRecorder {
     private static final String TAG = "CatfishSoh";
     static final int GEAR_PARK = 4;
+    static final String BECM = "becm", CANSPI = "canspi";
     private static final long DAY_MS = 24L * 3600L * 1000L;
     private static final int BROKER_PORT = 1883;
     // nanomq listens on IPv4 127.0.0.1 only; Android's InetAddress.getLoopbackAddress() is ::1, which is refused.
@@ -46,10 +49,14 @@ final class SohRecorder {
     static final class Entry {
         final long ts;
         final double pct;
+        final String source;
 
-        Entry(long ts, double pct) {
+        Entry(long ts, double pct) { this(ts, pct, CANSPI); }
+
+        Entry(long ts, double pct, String source) {
             this.ts = ts;
             this.pct = pct;
+            this.source = source;
         }
     }
 
@@ -58,6 +65,7 @@ final class SohRecorder {
     private final Callable<Double> fetch;
     private final List<Entry> entries = new ArrayList<>();
     private boolean recordedThisPark;
+    private boolean becmRunning;
     private String lastOutcome = "";
     private String state = "starting"; // for the page: why there is no new reading
     private ScheduledExecutorService executor;
@@ -86,6 +94,62 @@ final class SohRecorder {
         }, 5, 60, TimeUnit.SECONDS);
     }
 
+    /** Once per day when the app opens: the BECM read runs on the recorder's thread, never on the caller's. */
+    synchronized void readBecmIfDue(Callable<Double> becm) {
+        if (executor == null || becmRunning) return;
+        executor.execute(() -> becmTick(System.currentTimeMillis(), becm));
+    }
+
+    /** One BECM attempt: only when no BECM row exists for today and the gear is Park; failures are retried next open. */
+    void becmTick(long now, Callable<Double> becm) {
+        synchronized (this) {
+            if (becmRunning || hasBecmToday(now)) return;
+            Integer g = gear.get();
+            if (g == null || g != GEAR_PARK) {
+                note("BECM SOH skipped: " + (g == null ? "gear unknown" : "gear " + g));
+                return;
+            }
+            becmRunning = true;
+            state = "reading";
+        }
+        double pct;
+        String failure = null;
+        try {
+            Double v = becm.call();
+            pct = v == null ? Double.NaN : v;
+        } catch (Exception e) {
+            pct = Double.NaN;
+            failure = e.getClass().getSimpleName() + ": " + e.getMessage();
+        }
+        synchronized (this) {
+            becmRunning = false;
+            if (pct > 0 && pct <= 100) {
+                append(now, pct, BECM);
+                state = "ok";
+                note("BECM SOH " + pct + " %");
+            } else {
+                state = "becm failed";
+                Log.w(TAG, "BECM SOH read failed: " + (failure == null ? "no value" : failure));
+            }
+        }
+    }
+
+    private boolean hasBecmToday(long now) {
+        for (int i = entries.size() - 1; i >= 0; i--) {
+            Entry e = entries.get(i);
+            if (BECM.equals(e.source) && BecmSoh.sameDay(e.ts, now, java.time.ZoneId.systemDefault())) return true;
+        }
+        return false;
+    }
+
+    private boolean hasBecmWithinDay(long now) {
+        for (int i = entries.size() - 1; i >= 0; i--) {
+            Entry e = entries.get(i);
+            if (BECM.equals(e.source)) return now - e.ts < DAY_MS;
+        }
+        return false;
+    }
+
     synchronized void stop() {
         if (executor != null) executor.shutdownNow();
         executor = null;
@@ -100,6 +164,10 @@ final class SohRecorder {
             return;
         }
         if (recordedThisPark) return;
+        if (hasBecmWithinDay(now)) { // the finer BECM value stays on top; canspi only fills a gap
+            recordedThisPark = true;
+            return;
+        }
         double pct;
         try {
             Double v = fetch.call();
@@ -117,14 +185,18 @@ final class SohRecorder {
         recordedThisPark = true;
         Entry last = entries.isEmpty() ? null : entries.get(entries.size() - 1);
         if (!shouldRecord(last, now, pct)) return;
-        entries.add(new Entry(now, pct));
+        append(now, pct, CANSPI);
+    }
+
+    private void append(long now, double pct, String source) {
+        entries.add(new Entry(now, pct, source));
         try {
             if (!file.exists()) {
                 File parent = file.getParentFile();
                 if (parent != null) parent.mkdirs();
-                Files.write(file.toPath(), "ts,soh_pct\n".getBytes(StandardCharsets.UTF_8));
+                Files.write(file.toPath(), "ts,soh_pct,source\n".getBytes(StandardCharsets.UTF_8));
             }
-            Files.write(file.toPath(), String.format(Locale.ROOT, "%d,%.2f%n", now, pct).getBytes(StandardCharsets.UTF_8),
+            Files.write(file.toPath(), String.format(Locale.ROOT, "%d,%.2f,%s%n", now, pct, source).getBytes(StandardCharsets.UTF_8),
                     StandardOpenOption.APPEND);
         } catch (IOException e) {
             Log.w(TAG, "SOH history not saved", e);
@@ -148,7 +220,8 @@ final class SohRecorder {
         Entry prev = entries.size() < 2 ? null : entries.get(entries.size() - 2);
         return "{\"pct\":" + (last == null ? "null" : last.pct) + ",\"atMs\":" + (last == null ? "null" : last.ts)
                 + ",\"prevPct\":" + (prev == null ? "null" : prev.pct) + ",\"prevAtMs\":" + (prev == null ? "null" : prev.ts)
-                + ",\"count\":" + entries.size() + ",\"state\":\"" + state + "\"}";
+                + ",\"count\":" + entries.size() + ",\"source\":" + (last == null ? "null" : "\"" + last.source + "\"")
+                + ",\"state\":\"" + state + "\"}";
     }
 
     private void load() {
@@ -156,9 +229,10 @@ final class SohRecorder {
         try {
             for (String line : Files.readAllLines(file.toPath(), StandardCharsets.UTF_8)) {
                 String[] parts = line.split(",");
-                if (parts.length != 2) continue;
+                if (parts.length != 2 && parts.length != 3) continue;
                 try {
-                    entries.add(new Entry(Long.parseLong(parts[0].trim()), Double.parseDouble(parts[1].trim())));
+                    String source = parts.length == 3 && BECM.equals(parts[2].trim()) ? BECM : CANSPI;
+                    entries.add(new Entry(Long.parseLong(parts[0].trim()), Double.parseDouble(parts[1].trim()), source));
                 } catch (NumberFormatException skip) { } // header or a damaged line
             }
         } catch (IOException e) {
@@ -210,6 +284,12 @@ final class SohRecorder {
      */
     @android.annotation.SuppressLint("PrivateApi") // android.car is the head unit's system car library (uses-library)
     static Supplier<Integer> carGear(android.content.Context context) {
+        return carInt(context, 0x11400400);
+    }
+
+    /** Any int VHAL property through CarPropertyManager.getIntProperty (read only), null when unavailable. */
+    @android.annotation.SuppressLint("PrivateApi")
+    static Supplier<Integer> carInt(android.content.Context context, int propertyId) {
         Object[] manager = {null};
         return () -> {
             try {
@@ -220,7 +300,7 @@ final class SohRecorder {
                     manager[0] = carClass.getMethod("getCarManager", String.class).invoke(car, "property");
                 }
                 return (Integer) manager[0].getClass().getMethod("getIntProperty", int.class, int.class)
-                        .invoke(manager[0], 0x11400400, 0);
+                        .invoke(manager[0], propertyId, 0);
             } catch (ReflectiveOperationException | RuntimeException e) {
                 manager[0] = null; // car service restarted or not ready: rebuild on the next tick
                 return null;

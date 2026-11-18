@@ -33,8 +33,10 @@ public class SchematicReadingsTest {
         assertEquals("Cell 1 · waiting",SchematicReadings.cellTip(1,Double.NaN));
         assertEquals("T5 · Coolant out · −2 °C",SchematicReadings.sensorTip(5,"Coolant out",-2));
         assertEquals("T12 · Air · not seen yet",SchematicReadings.sensorTip(12,"Air",Double.NaN));
-        assertEquals("--",SchematicReadings.soh(Double.NaN));
-        assertEquals("96.50 %",SchematicReadings.soh(96.5));
+        assertEquals("--",SchematicReadings.soh(Double.NaN,"becm"));
+        assertEquals("96.44 %",SchematicReadings.soh(96.44,"becm"));   // BECM DID 496D: 0.01 % steps
+        assertEquals("96.5 %",SchematicReadings.soh(96.5,"canspi"));   // canspi EgyCdn: 0.5 % steps
+        assertEquals("96.5 %",SchematicReadings.soh(96.5,null));
         assertEquals("3.6 kWh in · 11 h 55 min left",SchematicReadings.chargeNote(3.6,715));
     }
 
@@ -58,7 +60,9 @@ public class SchematicReadingsTest {
         SchematicData offline = new SchematicData(reading.put("streamConnected",false));
         assertEquals("--",offline.soc);
         assertEquals("-- · --",offline.packVA);
-        assertEquals("96.50 %",offline.soh);
+        assertEquals("96.5 %",offline.soh);
+        assertFalse(offline.sohReading);
+        assertTrue(new SchematicData(new JSONObject("{\"soh\":{\"pct\":null,\"state\":\"reading\"}}")).sohReading);
         assertFalse(offline.plugged);
         assertEquals(3300,offline.cells[0],0);
         assertTrue(Double.isNaN(offline.temperatures[0]));

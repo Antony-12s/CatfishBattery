@@ -15,6 +15,7 @@ final class SchematicData {
             lvSoc, lvVoltage, lvState, chargePower, chargeNote;
     final SchematicReadings.Band lvBand;
     final boolean powerIn;
+    final boolean sohReading; // BECM DID 496D read in progress: the view shows a spinner in place of the value
 
     SchematicData(JSONObject data) {
         boolean live = data != null && Boolean.TRUE.equals(data.opt("streamConnected"));
@@ -64,7 +65,8 @@ final class SchematicData {
         }
         double km = number(current,"rangeKm",0,1500);
         JSONObject health = data == null ? null : data.optJSONObject("soh");
-        soh = SchematicReadings.soh(number(health,"pct",0,100));
+        soh = SchematicReadings.soh(number(health,"pct",0,100),health == null ? null : health.optString("source",null));
+        sohReading = health != null && "reading".equals(health.optString("state"));
         soc = UiFormat.fixed(number(current,"soc",0,100),1,"%");
         lvSoc = UiFormat.fixed(number(current,"socRaw",0,100),1," %");
         packPower = SchematicReadings.packPower(watts);

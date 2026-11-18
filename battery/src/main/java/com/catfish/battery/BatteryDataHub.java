@@ -13,12 +13,14 @@ final class BatteryDataHub {
     private static BatteryLogger logger;
     private static SohRecorder soh;
     private static int users;
+    private static Context appContext;
 
     private BatteryDataHub() { }
 
     static synchronized void acquire(Context context) {
         if (users++ > 0) return;
         Context app = context.getApplicationContext();
+        appContext = app;
         reader = new VehicleBatteryReader(app);
         // shortcut: no root here, so no car_service RANGE_REMAINING probe; range shows only if the VHAL stream pushes it.
         logger = new BatteryLogger(app, reader);
@@ -54,6 +56,13 @@ final class BatteryDataHub {
         logger = null;
         soh = null;
         reader = null;
+    }
+
+    /** Called when the app opens: the BECM SOH read, at most once per day and only in Park (see BecmSoh). */
+    static synchronized void readBecmSohIfDue() {
+        if (soh == null) return;
+        Context app = appContext;
+        soh.readBecmIfDue(() -> BecmSoh.read(app));
     }
 
     static synchronized VehicleBatteryReader reader() { return reader; }
