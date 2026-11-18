@@ -270,7 +270,7 @@ public final class VehicleBatteryReader {
     private static boolean isApvpScalar(int propertyId) {
         return propertyId == BATT_CURRENT_A || propertyId == BATT_VOLTAGE_V ||
                 propertyId == HV_TEMP_MAX_C || propertyId == HV_TEMP_MIN_C || propertyId == HV_TEMP_AVG_C ||
-                propertyId == LV_BATTERY_V || propertyId == SOC_RAW ||
+                propertyId == LV_BATTERY_V || propertyId == SOC_RAW || propertyId == SOC_APVP ||
                 propertyId == DCDC_ACTIVE || propertyId == DCDC_HI_A || propertyId == DCDC_LO_A ||
                 propertyId == DC_CHARGE_STATE || propertyId == DC_CHARGE_KW ||
                 propertyId == CABIN_THERM_W || propertyId == BATT_THERM_W || propertyId == DCDC_W ||

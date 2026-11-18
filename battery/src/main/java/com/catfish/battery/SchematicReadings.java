@@ -65,7 +65,7 @@ final class SchematicReadings {
                 + (Double.isFinite(temp) ? UiFormat.fixed(temp,0," °C") : "not seen yet");
     }
 
-    static String soh(double pct) { return "SOH " + UiFormat.percent2(pct); }
+    static String soh(double pct) { return UiFormat.percent2(pct); }
 
     static String chargeNote(double kwh, double minutes) {
         return UiFormat.fixed(kwh,1," kWh") + " in · " + UiFormat.duration(minutes) + " left";

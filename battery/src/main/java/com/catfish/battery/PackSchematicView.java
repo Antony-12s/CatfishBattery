@@ -144,7 +144,10 @@ final class PackSchematicView extends View {
         label(canvas,"HV PACK · 400 V",1258,28,15,tone(CHAMPAGNE,kicker()),MONO,Paint.Align.RIGHT);
         Typeface socFont = palette.night ? LIGHT : BOLD;
         label(canvas,data.soc,1258,72,46,ink(),socFont,Paint.Align.RIGHT);
-        label(canvas,data.soh,1258-measure(data.soc,46,socFont)-18,72,17,muted(),NORMAL,Paint.Align.RIGHT);
+        // SOH is its own column at a fixed spot left of the SOC hero, so it never jumps with the SOC width
+        float sohRight = 1258 - measure("100.0%",46,socFont) - 30;
+        label(canvas,"SOH",sohRight,46,13,kicker(),MONO,Paint.Align.RIGHT);
+        label(canvas,data.soh,sohRight,72,24,ink(),BOLD,Paint.Align.RIGHT);
         label(canvas,data.range,1258,98,17,muted(),NORMAL,Paint.Align.RIGHT);
         float rangeWidth = data.range.isEmpty() ? 0 : measure(data.range,17,NORMAL)+10;
         label(canvas,data.packPower,1258-rangeWidth,98,20,data.powerIn ? palette.good : ink(),BOLD,Paint.Align.RIGHT);

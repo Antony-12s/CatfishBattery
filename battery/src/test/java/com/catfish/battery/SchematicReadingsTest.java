@@ -33,8 +33,8 @@ public class SchematicReadingsTest {
         assertEquals("Cell 1 · waiting",SchematicReadings.cellTip(1,Double.NaN));
         assertEquals("T5 · Coolant out · −2 °C",SchematicReadings.sensorTip(5,"Coolant out",-2));
         assertEquals("T12 · Air · not seen yet",SchematicReadings.sensorTip(12,"Air",Double.NaN));
-        assertEquals("SOH --",SchematicReadings.soh(Double.NaN));
-        assertEquals("SOH 96.50 %",SchematicReadings.soh(96.5));
+        assertEquals("--",SchematicReadings.soh(Double.NaN));
+        assertEquals("96.50 %",SchematicReadings.soh(96.5));
         assertEquals("3.6 kWh in · 11 h 55 min left",SchematicReadings.chargeNote(3.6,715));
     }
 
@@ -58,7 +58,7 @@ public class SchematicReadingsTest {
         SchematicData offline = new SchematicData(reading.put("streamConnected",false));
         assertEquals("--",offline.soc);
         assertEquals("-- · --",offline.packVA);
-        assertEquals("SOH 96.50 %",offline.soh);
+        assertEquals("96.50 %",offline.soh);
         assertFalse(offline.plugged);
         assertEquals(3300,offline.cells[0],0);
         assertTrue(Double.isNaN(offline.temperatures[0]));
