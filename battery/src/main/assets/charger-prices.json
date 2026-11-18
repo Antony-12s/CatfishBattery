@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "updated": "2026-11-18",
+  "regions": [
+    {
+      "currency": "THB",
+      "name": "Thailand",
+      "peakHours": "On-peak Mon-Fri 09:00-22:00; off-peak nights, weekends and holidays",
+      "networks": [
+        { "brand": "EV Station PluZ", "detail": "DC 40-180 kW", "peak": 7.40, "offPeak": 6.10,
+          "source": "PluZ official page, via Bangkok Motorhaus", "url": "https://bangkokmotorhaus.com/ev-charging-cost", "date": "2026-09-01" },
+        { "brand": "EV Station PluZ", "detail": "DC 180-480 kW (EV HUB / Ultra-Fast)", "peak": 7.90, "offPeak": 6.60,
+          "source": "PluZ official page, via Bangkok Motorhaus", "url": "https://bangkokmotorhaus.com/ev-charging-cost", "date": "2026-09-01" },
+        { "brand": "PEA VOLTA", "detail": "DC under 50 kW", "peak": 5.90, "offPeak": 4.90,
+          "source": "pea.co.th, via Bangkok Motorhaus", "url": "https://bangkokmotorhaus.com/ev-charging-cost", "date": "2026-05-01" },
+        { "brand": "PEA VOLTA", "detail": "DC 50-299 kW", "peak": 6.90, "offPeak": 5.90,
+          "source": "pea.co.th, via Bangkok Motorhaus", "url": "https://bangkokmotorhaus.com/ev-charging-cost", "date": "2026-05-01" },
+        { "brand": "PEA VOLTA", "detail": "DC 300 kW and up", "peak": 7.90, "offPeak": 6.90,
+          "source": "pea.co.th, via Bangkok Motorhaus", "url": "https://bangkokmotorhaus.com/ev-charging-cost", "date": "2026-05-01" },
+        { "brand": "MEA EV", "detail": "AC and DC, Bangkok area", "price": 7.50,
+          "source": "mea.or.th, via Bangkok Motorhaus", "url": "https://bangkokmotorhaus.com/ev-charging-cost", "date": "2026-09-08" },
+        { "brand": "EA Anywhere", "detail": "DC", "price": 7.08, "from": true,
+          "source": "EA official page, via Bangkok Motorhaus", "url": "https://bangkokmotorhaus.com/ev-charging-cost", "date": "2026-05-01" },
+        { "brand": "EleX by EGAT", "detail": "DC at EGAT sites", "price": 6.50,
+          "source": "egatev.egat.co.th, via Bangkok Motorhaus", "url": "https://bangkokmotorhaus.com/ev-charging-cost", "date": "2021-06-30" },
+        { "brand": "EleX by EGAT", "detail": "DC/AC at PT stations", "price": 7.50,
+          "source": "egatev.egat.co.th, via Bangkok Motorhaus", "url": "https://bangkokmotorhaus.com/ev-charging-cost", "date": "2021-06-30" },
+        { "brand": "Tesla Supercharger", "detail": "Bangkok area, Tesla cars", "price": 7.53,
+          "source": "tesla.com, via Bangkok Motorhaus", "url": "https://bangkokmotorhaus.com/ev-charging-cost", "date": "2026-09-08" },
+        { "brand": "Tesla Supercharger", "detail": "Upcountry, Tesla cars", "price": 6.56,
+          "source": "tesla.com, via Bangkok Motorhaus", "url": "https://bangkokmotorhaus.com/ev-charging-cost", "date": "2026-09-08" },
+        { "brand": "ReverSharger", "detail": "DC, varies by site (was SHARGE)", "price": 7.50, "from": true,
+          "source": "reverautomotive.com, via Bangkok Motorhaus", "url": "https://bangkokmotorhaus.com/ev-charging-cost", "date": "2024-08-01" }
+      ]
+    },
+    {
+      "currency": "USD",
+      "name": "United States",
+      "peakHours": "Network averages of posted peak rates; the price at the stall can differ",
+      "networks": [
+        { "brand": "Tesla Supercharger", "detail": "Standard rate, average", "price": 0.649,
+          "source": "DCFC Tracker, via EV Charging Help", "url": "https://evcharginghelp.com/residential/costs-incentives/dc-fast-charging-cost-per-kwh-2026", "date": "2026-11-13" },
+        { "brand": "Tesla Supercharger", "detail": "Members, average", "price": 0.439,
+          "source": "DCFC Tracker, via EV Charging Help", "url": "https://evcharginghelp.com/residential/costs-incentives/dc-fast-charging-cost-per-kwh-2026", "date": "2026-11-13" },
+        { "brand": "EVgo", "detail": "Average", "price": 0.639,
+          "source": "DCFC Tracker, via EV Charging Help", "url": "https://evcharginghelp.com/residential/costs-incentives/dc-fast-charging-cost-per-kwh-2026", "date": "2026-11-13" },
+        { "brand": "Electrify America", "detail": "Average", "price": 0.593,
+          "source": "DCFC Tracker, via EV Charging Help", "url": "https://evcharginghelp.com/residential/costs-incentives/dc-fast-charging-cost-per-kwh-2026", "date": "2026-11-13" },
+        { "brand": "Pilot Flying J", "detail": "Average", "price": 0.588,
+          "source": "DCFC Tracker, via EV Charging Help", "url": "https://evcharginghelp.com/residential/costs-incentives/dc-fast-charging-cost-per-kwh-2026", "date": "2026-11-13" },
+        { "brand": "Rivian Adventure Network", "detail": "Non-Rivian rate, average", "price": 0.551,
+          "source": "DCFC Tracker, via EV Charging Help", "url": "https://evcharginghelp.com/residential/costs-incentives/dc-fast-charging-cost-per-kwh-2026", "date": "2026-11-13" },
+        { "brand": "IONNA", "detail": "Average", "price": 0.37,
+          "source": "Chargenomics, via EV Charging & Infrastructure", "url": "https://www.evcandi.com/news/walmart-expands-ev-charging-network-ionna-pledges-30k-fast-chargers-2030", "date": "2026-11-01" }
+      ]
+    },
+    {
+      "currency": "EUR",
+      "name": "Europe (Germany)",
+      "peakHours": "Ad-hoc prices without a subscription; subscriptions cost less",
+      "networks": [
+        { "brand": "IONITY", "detail": "IONITY Direct, ad-hoc, up to", "price": 0.76,
+          "source": "IONITY announcement, via EVmagz", "url": "https://evmagz.com/ionity-raises-ev-charging-prices-across-europe-from-july-1", "date": "2026-07-01" },
+        { "brand": "IONITY", "detail": "IONITY Power subscription", "price": 0.41, "from": true,
+          "source": "IONITY announcement, via EVmagz", "url": "https://evmagz.com/ionity-raises-ev-charging-prices-across-europe-from-july-1", "date": "2026-07-01" },
+        { "brand": "EnBW", "detail": "DC ad-hoc, average", "price": 0.66,
+          "source": "adhoccharging.eu", "url": "https://adhoccharging.eu/operator/enbw", "date": "2026-10-07" },
+        { "brand": "Fastned", "detail": "Ad-hoc", "price": 0.69,
+          "source": "ChargeCostLab", "url": "https://chargecostlab.com/blog/public-ev-charging-networks-compared-cost-by-network-us-eu-2026", "date": "2026-11-01" }
+      ]
+    },
+    {
+      "currency": "CNY",
+      "name": "China",
+      "peakHours": "Electricity fee plus service fee; both change by city and hour",
+      "networks": [
+        { "brand": "Tesla Supercharger", "detail": "Non-Tesla cars, package rate", "price": 1.50, "from": true,
+          "source": "China EV Home", "url": "https://chinaevhome.com/2026/05/26/tesla-opens-supercharger-cards-to-non-tesla-ev-owners-from-0-22-kwh", "date": "2026-05-26" },
+        { "brand": "Commercial public chargers", "detail": "City hotspots, up to about", "price": 2.00,
+          "source": "Sichuan Daily", "url": "https://epaper.scdaily.cn/shtml/scrb/20260420/1076728.html", "date": "2026-04-20" }
+      ]
+    }
+  ]
+}

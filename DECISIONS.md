@@ -72,3 +72,21 @@ Do not resolve signer mismatches by uninstalling or clearing data.
   release the channel. The page shows a spinner during the read. BECM rows
   (0.01 % steps) are shown with two decimals; canspi HvBattEgyCdn (0.5 %
   steps) with one, and only fills in when no BECM read is under a day old.
+
+- Public charger prices (2026-11-18): Settings lists public network prices for
+  the chosen currency (THB, USD, EUR, CNY so far) from
+  `battery/src/main/assets/charger-prices.json`. The app fetches the same file
+  from GitHub `main` once per run and keeps it; the bundled copy is the offline
+  fallback. Every price carries its source, URL and date. "+ Add" only fills a
+  new charger row; nothing is saved until the driver taps Save. The cost to
+  80 % uses the car's live SOC and remaining pack energy and is hidden when
+  either is missing; no figures are made up.
+
+- Settings layout (2026-11-18): one summary card per section on the left
+  (Region, Preferences, Chargers & prices, Totals & reset, Update, About), each
+  showing its current values; the open section is on the right. Region picks
+  the currency (no separate Currency row) and with it the peak hours and the
+  public charger price list from `charger-prices.json`. Update reads the last 5
+  releases from the GitHub API (read-only, once per run or on Check now) and
+  shows the changelog; it never downloads or installs anything. About shows the
+  build time and commit from BuildConfig and a Ko-fi QR code.

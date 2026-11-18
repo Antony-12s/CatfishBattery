@@ -43,10 +43,11 @@ final class SettingsPage extends FrameLayout {
     private static final String TAG = "CatfishBattery";
 
     private final ChargingUi ui;
-    private static final String[] SECTIONS = { "Preferences", "Chargers & prices", "Totals & reset", "About" };
-    private static final String[] ICONS = { "\u2699\uFE0E", "\u26A1\uFE0E", "\u21BB", "i" };
+    private static final String[] SECTIONS = { "Region", "Preferences", "Chargers & prices", "Totals & reset", "Update", "About" };
+    private static final String[] ICONS = { "\u25CE", "\u2699\uFE0E", "\u26A1\uFE0E", "\u21BB", "\u2B07\uFE0E", "i" };
 
-    private final LinearLayout chargersBox, prefs, totals;
+    private final LinearLayout chargersBox, prefs, totals, region, pricesBox, update;
+    private TextView chargersNote;
     private final View[] items = new View[SECTIONS.length], panes;
     private final TextView[] summaries = new TextView[SECTIONS.length];
     private final ScrollView detail;
@@ -61,6 +62,10 @@ final class SettingsPage extends FrameLayout {
     private boolean dirty, loading, saving, binding;
     private TextView nextResetLine;
     private Spinner monthsSpinner, daySpinner;
+    private ChargerPrices prices;
+    private boolean pricesOnline, fetchStarted, updateStarted, checking;
+    private List<UpdateCheck.Release> releases;
+    private JSONObject live; // the dataJson() poll read when the page was shown, for the cost to 80 %
 
     SettingsPage(Context context) {
         super(context);
@@ -93,8 +98,9 @@ final class SettingsPage extends FrameLayout {
         body.addView(detail, ChargingUi.weight(1f));
 
         LinearLayout chargers = ui.column();
-        chargers.addView(h3("Chargers & prices", "TOU: weekdays 09:00–22:00 on-peak, nights and weekends off-peak. A charge "
-                + "while parked has no known time and counts as off-peak. Public holidays are not known."));
+        View chargersHead = h3("Chargers & prices", TOU_NOTE);
+        chargersNote = (TextView) ((LinearLayout) chargersHead).getChildAt(1);
+        chargers.addView(chargersHead);
         chargersBox = ui.column();
         chargers.addView(chargersBox, ChargingUi.fillWidth());
         Button add = ui.button("+ Add charger", 24, false);
@@ -104,7 +110,10 @@ final class SettingsPage extends FrameLayout {
         chargers.addView(add, addLp);
         prefs = ui.column();
         totals = ui.column();
-        panes = new View[] { prefs, chargers, totals, about() };
+        region = ui.column();
+        pricesBox = ui.column();
+        update = ui.column();
+        panes = new View[] { region, prefs, chargers, totals, update, about() };
         for (View p : panes) sections.addView(p, ChargingUi.fillWidth());
 
         // save bar
@@ -122,7 +131,8 @@ final class SettingsPage extends FrameLayout {
         card.addView(bar, barLp);
         setState("Loading…", ui.muted);
         saveEnabled(false);
-        ChargingUi.set(summaries[3], "v" + BuildConfig.VERSION_NAME + " · built " + UiFormat.date(BuildConfig.BUILD_TIME, TimeZone.getDefault()));
+        buildUpdate();
+        ChargingUi.set(summaries[5], "v" + BuildConfig.VERSION_NAME + " · built " + UiFormat.date(BuildConfig.BUILD_TIME, TimeZone.getDefault()));
         show(0);
     }
 
@@ -165,9 +175,10 @@ final class SettingsPage extends FrameLayout {
 
     private void summaries() {
         if (form == null) return;
-        ChargingUi.set(summaries[1], form.chargersSummary());
-        ChargingUi.set(summaries[0], form.prefsSummary());
-        ChargingUi.set(summaries[2], form.totalsSummary());
+        ChargingUi.set(summaries[0], ChargerPrices.regionSummary(prices, form.currency));
+        ChargingUi.set(summaries[1], form.prefsSummary());
+        ChargingUi.set(summaries[2], form.chargersSummary());
+        ChargingUi.set(summaries[3], form.totalsSummary());
     }
 
     private void saveEnabled(boolean on) {
@@ -180,6 +191,239 @@ final class SettingsPage extends FrameLayout {
         boolean wasSaved = saved != null && saved.optBoolean("_saved");
         setState(wasSaved ? "✓  Saved" : "Default settings", wasSaved ? ui.good : ui.muted);
         saveEnabled(false);
+    }
+
+    // ---- Region: currency, peak hours and public charger prices ----
+
+    static final String TOU_NOTE = "TOU: weekdays 09:00–22:00 on-peak, nights and weekends off-peak. A charge while parked "
+            + "has no known time and counts as off-peak. Public holidays are not known.";
+
+    /** The country picks the currency; its peak hours and public networks follow. */
+    private void buildRegion() {
+        region.removeAllViews();
+        region.addView(h3("Region", "Sets the currency, the peak hours and the public charging networks listed below."));
+        java.util.List<String[]> choices = ChargerPrices.regionChoices(prices);
+        String[] labels = new String[choices.size()];
+        int at = 0;
+        for (int i = 0; i < labels.length; i++) {
+            labels[i] = choices.get(i)[1] + " · " + ChargingCost.CURRENCY.get(choices.get(i)[0]);
+            if (choices.get(i)[0].equals(form.currency)) at = i;
+        }
+        boolean wasBinding = binding;
+        binding = true;
+        prow(region, "Country", "every price and total uses its currency", spinner(labels, at, i -> {
+            if (choices.get(i)[0].equals(form.currency)) return;
+            form.currency = choices.get(i)[0];
+            units();
+            changed();
+            post(this::buildRegion);
+        }));
+        binding = wasBinding;
+        LinearLayout.LayoutParams lp = ChargingUi.fillWidth();
+        lp.topMargin = ui.dp(24);
+        if (pricesBox.getParent() != null) ((ViewGroup) pricesBox.getParent()).removeView(pricesBox);
+        region.addView(pricesBox, lp);
+        buildPrices();
+        ChargerPrices.Region r = prices == null ? null : prices.forCurrency(form.currency);
+        if (chargersNote != null) ChargingUi.set(chargersNote, r != null && !r.peakHours.isEmpty() ? r.peakHours + "." : TOU_NOTE);
+        summaries();
+    }
+
+    /** Once per app run: the GitHub copy of the price list, off the settings thread so a slow network never blocks Save. */
+    private void fetchPrices() {
+        if (fetchStarted) return;
+        fetchStarted = true;
+        Context app = getContext().getApplicationContext();
+        ChargingUi.background(() -> {
+            ChargerPrices fresh = ChargerPrices.fetch(app);
+            if (fresh == null) return;
+            post(() -> { prices = fresh; pricesOnline = true; if (form != null) buildRegion(); });
+        });
+    }
+
+    /** The networks for the chosen currency, each with its price, the cost from the live SOC to 80 % and its source. */
+    private void buildPrices() {
+        pricesBox.removeAllViews();
+        if (form == null) return;
+        ChargerPrices.Region r = prices == null ? null : prices.forCurrency(form.currency);
+        if (r == null) {
+            TextView none = hint("No public network list for " + form.currency + " yet; add your chargers by hand.");
+            pricesBox.addView(none);
+            return;
+        }
+        String updated = ChargerPrices.dateText(prices.updated);
+        pricesBox.addView(h3("Public charging · " + r.name,
+                (updated.isEmpty() ? "" : "Updated " + updated + " · ") + (pricesOnline ? "online copy" : "offline copy")
+                        + ". Tap Add to make one your charger, then Save."));
+        double loss = SettingsForm.priceOf(form.lossDc);
+        Double kwh = ChargerPrices.kwhTo(live, 80);
+        Double soc = live == null ? null : ChargingCost.num(live, "soc");
+        String basis = kwh == null ? "Cost to 80 % needs the car's live SOC and pack energy."
+                : kwh == 0 ? "The pack is at " + UiFormat.fixed(soc, 0, " %") + ", already at 80 % or more."
+                : "Cost to 80 %: " + UiFormat.fixed(kwh, 1, " kWh") + " from " + UiFormat.fixed(soc, 0, " %")
+                        + (loss > 0 ? ", DC loss " + SettingsForm.shown(loss) + " % added." : ".");
+        TextView note = hint(r.peakHours.isEmpty() ? basis : r.peakHours + ". " + basis);
+        note.setPadding(0, 0, 0, ui.dp(8));
+        pricesBox.addView(note);
+        ChargingCost money = new ChargingCost(form.toJson(), TimeZone.getDefault());
+        for (ChargerPrices.Network n : r.networks) {
+            pricesBox.addView(ui.divider(false));
+            pricesBox.addView(priceRow(n, kwh, loss, money), ChargingUi.fillWidth());
+        }
+    }
+
+    private LinearLayout priceRow(ChargerPrices.Network n, Double kwh, double loss, ChargingCost money) {
+        LinearLayout row = ui.row();
+        row.setPadding(0, ui.dp(14), 0, ui.dp(14));
+        LinearLayout text = ui.column();
+        TextView name = ui.text(24, ui.text, 700);
+        ChargingUi.set(name, n.detail.isEmpty() ? n.brand : n.brand + " · " + n.detail);
+        text.addView(name);
+        String from = n.from ? "from " : "";
+        String rate = n.tou ? from + rate(n.peak) + " on-peak · " + rate(n.offPeak) + " off-peak" : from + rate(n.price);
+        String cost = kwh == null ? "" : n.tou
+                ? "  ·  to 80 % " + money.money(ChargerPrices.cost(kwh, n.peak, loss)) + " / " + money.money(ChargerPrices.cost(kwh, n.offPeak, loss))
+                : "  ·  to 80 % " + money.money(ChargerPrices.cost(kwh, n.price, loss));
+        TextView price = ui.text(22, ui.accent2, 600);
+        price.setPadding(0, ui.dp(4), 0, 0);
+        ChargingUi.set(price, rate + cost);
+        text.addView(price);
+        TextView source = ui.text(18, ui.muted2, 400);
+        source.setPadding(0, ui.dp(4), 0, 0);
+        String date = ChargerPrices.dateText(n.date);
+        ChargingUi.set(source, n.source + (date.isEmpty() ? "" : " · " + date));
+        text.addView(source);
+        row.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        Button add = ui.button("+ Add", 22, false);
+        add.setContentDescription("Add " + n.chargerName() + " as a charger");
+        add.setOnClickListener(v -> addFromNetwork(n));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ui.dp(76));
+        lp.leftMargin = ui.dp(16);
+        row.addView(add, lp);
+        return row;
+    }
+
+    /** "7.40 ฿/kWh"; three decimals only when the source has them (US averages like 0.649). */
+    private String rate(double v) {
+        boolean cents = Math.abs(v * 100 - Math.round(v * 100)) < 1e-6;
+        return UiFormat.fixed(v, cents ? 2 : 3, " " + unitText());
+    }
+
+    /** A new charger row filled from a network's prices; the driver still taps Save, as for any edit. */
+    private void addFromNetwork(ChargerPrices.Network n) {
+        SettingsForm.Charger c = form.addCharger(System.currentTimeMillis());
+        c.name = n.chargerName();
+        c.tou = n.tou;
+        c.price = n.tou ? "" : SettingsForm.shown(n.price);
+        c.peak = SettingsForm.shown(n.peak);
+        c.offPeak = SettingsForm.shown(n.offPeak);
+        binding = true;
+        addRow(c);
+        binding = false;
+        markDefaults();
+        changed();
+        Toast.makeText(getContext(), "Added " + c.name + " to Chargers & prices. Tap Save to keep it.", Toast.LENGTH_SHORT).show();
+    }
+
+    private TextView hint(String text) {
+        TextView t = ui.text(20, ui.muted, 400);
+        t.setLineSpacing(ui.dp(4), 1f);
+        ChargingUi.set(t, text);
+        return t;
+    }
+
+    // ---- Update: latest GitHub release and changelog ----
+
+    /** Once per app run, or when the driver taps Check now: read the release list off the UI thread. */
+    private void checkUpdate(boolean force) {
+        if (checking || (updateStarted && !force)) return;
+        updateStarted = true;
+        checking = true;
+        buildUpdate();
+        ChargingUi.background(() -> {
+            List<UpdateCheck.Release> fresh = UpdateCheck.fetch();
+            post(() -> {
+                checking = false;
+                if (fresh != null) releases = fresh;
+                else if (force) Toast.makeText(getContext(), "Could not reach GitHub", Toast.LENGTH_SHORT).show();
+                buildUpdate();
+            });
+        });
+    }
+
+    private void buildUpdate() {
+        update.removeAllViews();
+        String installed = BuildConfig.VERSION_NAME;
+        ChargingUi.set(summaries[4], checking && releases == null ? "Checking… · you have " + installed : UpdateCheck.summary(releases, installed));
+        update.addView(h3("Update", "Latest releases of Catfish Battery on GitHub. The app only reads the list; installing stays with you."));
+        UpdateCheck.Release latest = UpdateCheck.latest(releases);
+        boolean available = latest != null && UpdateCheck.newer(latest.version, installed);
+
+        LinearLayout top = ui.row();
+        top.setGravity(Gravity.TOP);
+        LinearLayout status = ui.column();
+        TextView big = ui.text(34, available ? ui.good : ui.text, 700);
+        ChargingUi.set(big, latest == null ? (checking ? "Checking…" : "Not checked") : available ? latest.version + " available" : "Up to date");
+        status.addView(big);
+        TextView small = ui.text(21, ui.muted, 400);
+        small.setPadding(0, ui.dp(8), 0, ui.dp(18));
+        ChargingUi.set(small, "Installed " + installed + " (build " + BuildConfig.VERSION_CODE + ")"
+                + (latest == null ? (checking ? "" : " · GitHub not reached") : " · latest " + latest.version + (latest.date.isEmpty() ? "" : ", " + latest.date)));
+        status.addView(small);
+        Button check = ui.button(checking ? "Checking…" : "Check now", 22, false);
+        check.setEnabled(!checking);
+        check.setOnClickListener(v -> checkUpdate(true));
+        status.addView(check, ChargingUi.wrap());
+        top.addView(status, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        String link = latest == null ? UpdateCheck.RELEASES_PAGE : latest.url;
+        LinearLayout qrBox = ui.column();
+        qrBox.setGravity(Gravity.CENTER_HORIZONTAL);
+        android.widget.ImageView qr = new android.widget.ImageView(getContext());
+        qr.setImageBitmap(qr(link, 360));
+        qr.setBackground(ui.box(0xFFFFFFFF, 0, 14));
+        qr.setPadding(ui.dp(12), ui.dp(12), ui.dp(12), ui.dp(12));
+        qr.setContentDescription("QR code for " + link);
+        qrBox.addView(qr, new LinearLayout.LayoutParams(ui.dp(200), ui.dp(200)));
+        TextView cap = ui.text(18, ui.muted, 400);
+        cap.setGravity(Gravity.CENTER);
+        cap.setPadding(0, ui.dp(8), 0, 0);
+        ChargingUi.set(cap, "Scan to open the release\non your phone");
+        qrBox.addView(cap);
+        LinearLayout.LayoutParams qlp = new LinearLayout.LayoutParams(ui.dp(260), ViewGroup.LayoutParams.WRAP_CONTENT);
+        qlp.leftMargin = ui.dp(24);
+        top.addView(qrBox, qlp);
+        update.addView(top, ChargingUi.fillWidth());
+
+        if (releases == null || releases.isEmpty()) return;
+        TextView head = ui.text(26, ui.text, 700);
+        head.setPadding(0, ui.dp(26), 0, ui.dp(4));
+        ChargingUi.set(head, "Changelog");
+        update.addView(head);
+        for (UpdateCheck.Release r : releases) {
+            update.addView(ui.divider(false));
+            LinearLayout row = ui.row();
+            row.setPadding(0, ui.dp(14), 0, ui.dp(6));
+            TextView v = ui.text(24, ui.accent, 700);
+            ChargingUi.set(v, r.version + (r.date.isEmpty() ? "" : "  ·  " + r.date));
+            row.addView(v, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            String tag = r.version.equals(installed) ? "Installed" : UpdateCheck.newer(r.version, installed) ? "New" : "";
+            if (!tag.isEmpty()) {
+                TextView t = ui.text(18, tag.equals("New") ? ui.good : ui.muted, 700);
+                t.setPadding(ui.dp(14), ui.dp(6), ui.dp(14), ui.dp(6));
+                t.setBackground(ui.box(0, tag.equals("New") ? ui.good : ui.panelEdge, 999));
+                ChargingUi.set(t, tag);
+                row.addView(t);
+            }
+            update.addView(row, ChargingUi.fillWidth());
+            for (String line : r.notes) {
+                TextView n = ui.text(20, line.startsWith("•") || line.startsWith("   ") ? ui.text : ui.muted, 400);
+                n.setPadding(ui.dp(4), ui.dp(4), 0, ui.dp(4));
+                n.setLineSpacing(ui.dp(3), 1f);
+                ChargingUi.set(n, line);
+                update.addView(n);
+            }
+        }
     }
 
     // ---- About ----
@@ -290,9 +534,19 @@ final class SettingsPage extends FrameLayout {
             String json;
             try { json = BatteryDataHub.settingsJson(); }
             catch (RuntimeException e) { Log.e(TAG, "Battery settings unavailable", e); json = null; }
+            JSONObject poll;
+            try { poll = new JSONObject(BatteryDataHub.dataJson()); }
+            catch (JSONException | RuntimeException e) { poll = null; }
+            ChargerPrices list = prices != null ? prices : ChargerPrices.load(getContext().getApplicationContext());
             final String j = json;
+            final JSONObject p = poll;
             post(() -> {
                 loading = false;
+                live = p;
+                if (prices == null) prices = list;
+                fetchPrices();
+                checkUpdate(false);
+                if (form != null) buildRegion();
                 if (dirty || saving) return; // the driver started editing meanwhile
                 if (!apply(j)) { if (form == null) setState("Settings unavailable", ui.danger); return; }
                 idle();
@@ -347,6 +601,7 @@ final class SettingsPage extends FrameLayout {
         setState("●  Unsaved changes", ui.warn);
         saveEnabled(!saving);
         showIssues();
+        buildPrices(); // the DC loss feeds the cost to 80 %
         summaries();
     }
 
@@ -365,6 +620,7 @@ final class SettingsPage extends FrameLayout {
         chargersBox.removeAllViews();
         for (SettingsForm.Charger c : form.chargers) addRow(c);
         buildPrefs();
+        buildRegion();
         binding = false;
         markDefaults();
         showIssues();
@@ -485,14 +741,6 @@ final class SettingsPage extends FrameLayout {
         totals.removeAllViews();
         totals.addView(h3("Totals & reset", "Used, charged and regen totals and their cost. Charge history and settings are never cleared."));
 
-        String[] codes = ChargingCost.CURRENCY.keySet().toArray(new String[0]);
-        String[] labels = new String[codes.length];
-        int at = 0;
-        for (int i = 0; i < codes.length; i++) {
-            labels[i] = codes[i] + " · " + ChargingCost.CURRENCY.get(codes[i]);
-            if (codes[i].equals(form.currency)) at = i;
-        }
-        prow(prefs, "Currency", "every price and total follows it", spinner(labels, at, i -> { form.currency = codes[i]; units(); changed(); }));
 
         LinearLayout pair = ui.row();
         pair.addView(numberField("lossAc", form.lossAc, "% AC", "AC charging loss", s -> form.lossAc = s));
