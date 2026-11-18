@@ -2,34 +2,45 @@ package com.catfish.battery;
 
 import android.app.Activity;
 import android.content.res.Configuration;
-import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
-import android.webkit.JavascriptInterface;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebResourceResponse;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.FrameLayout;
 
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import org.json.JSONObject;
 
 /**
- * The battery pages (Status / Charging / History / Settings) in a WebView, fed in-process: the page HTML
- * is loaded directly and its data fetches are answered by {@link #intercept}. Ported from Custom
- * Profiles' BatteryCategory.
+ * The battery pages (Status / Charging / History / Settings) as native views under the native tab bar. Status gets
+ * BatteryDataHub.dataJson() once a second while shown, read on a background thread; Charging and History refresh every
+ * 30 s and Settings when shown, as the WebView pages polled. Day/night changes recreate the activity (resolved colours
+ * do not update on existing views); the selected page survives the recreate.
  */
 public final class BatteryActivity extends Activity {
     private static final String TAG = "CatfishBattery";
-    private static final String BASE = "https://battery.local/";
     private static final String[] PAGES = { "status", "charging", "history", "settings" };
-    private WebView web;
+    private static final int SLOW_REFRESH_S = 30;
+
+    private final Handler main = new Handler(Looper.getMainLooper());
     private Button[] tabs;
-    private String page = "status";
+    private View[] pages;
+    private StatusPage status;
+    private ChargingPage charging;
+    private HistoryPage history;
+    private SettingsPage settings;
+    private volatile String page = "status";
+    private volatile boolean resumed;
+    private ScheduledExecutorService poller;
+    private ScheduledFuture<?> tick;
+    private int ticks;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -39,20 +50,38 @@ public final class BatteryActivity extends Activity {
         if (state != null) page = state.getString("page", page);
         tabs = new Button[] { findViewById(R.id.battery_tab_status), findViewById(R.id.battery_tab_charging),
                 findViewById(R.id.battery_tab_history), findViewById(R.id.battery_tab_settings) };
+        status = new StatusPage(this);
+        charging = new ChargingPage(this);
+        history = new HistoryPage(this);
+        settings = new SettingsPage(this);
+        pages = new View[] { status, charging, history, settings };
+        FrameLayout slot = findViewById(R.id.battery_page_slot);
+        for (View p : pages) {
+            p.setVisibility(View.GONE);
+            slot.addView(p, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        }
         for (int i = 0; i < tabs.length; i++) {
             final String name = PAGES[i];
-            tabs[i].setOnClickListener(v -> { page = name; load(); });
+            tabs[i].setOnClickListener(v -> select(name));
         }
-        attachWebView();
+        show(page);
     }
 
     @Override protected void onResume() {
         super.onResume();
-        if (web != null) { web.onResume(); load(); }
+        resumed = true;
+        poller = Executors.newSingleThreadScheduledExecutor();
+        setPageVisible(page, true);
+        ticks = 0;
+        tick = poller.scheduleWithFixedDelay(this::onTick, 0, 1, TimeUnit.SECONDS);
     }
 
     @Override protected void onPause() {
-        if (web != null) web.onPause();
+        resumed = false;
+        if (tick != null) tick.cancel(false);
+        if (poller != null) poller.shutdownNow();
+        poller = null;
+        setPageVisible(page, false);
         super.onPause();
     }
 
@@ -63,81 +92,79 @@ public final class BatteryActivity extends Activity {
 
     @Override public void onConfigurationChanged(Configuration config) {
         super.onConfigurationChanged(config);
-        // Reinflate native chrome too: resolved day/night colors do not update on existing Views.
+        // Reinflate native chrome and pages: resolved day/night colours do not update on existing Views.
         recreate();
     }
 
     @Override protected void onDestroy() {
-        if (web != null) { web.destroy(); web = null; }
+        main.removeCallbacksAndMessages(null);
         BatteryDataHub.release();
         super.onDestroy();
     }
 
-    private void attachWebView() {
-        FrameLayout slot = findViewById(R.id.battery_web_slot);
-        try {
-            web = new WebView(this);
-        } catch (Throwable t) {
-            // No WebView provider on this build: say so instead of crashing.
-            Log.e(TAG, "WebView unavailable", t);
-            findViewById(R.id.battery_unavailable).setVisibility(View.VISIBLE);
-            slot.setVisibility(View.GONE);
-            return;
+    private void select(String name) {
+        if (name.equals(page)) return;
+        if (resumed) setPageVisible(page, false);
+        page = name;
+        show(name);
+        if (resumed) {
+            setPageVisible(name, true);
+            ticks = 0;
+            if ("status".equals(name) && poller != null) poller.execute(this::pollStatus);
         }
-        web.getSettings().setJavaScriptEnabled(true);
-        web.getSettings().setDomStorageEnabled(true);
-        // The Settings page saves through this: intercepted requests carry no body. Only this app's own
-        // pages ever load here (navigation is blocked below).
-        web.addJavascriptInterface(new Object() {
-            @JavascriptInterface public String saveSettings(String json) { return BatteryDataHub.saveSettings(json); }
-        }, "CFBattery");
-        web.setBackgroundColor(Color.TRANSPARENT);
-        web.setWebViewClient(new WebViewClient() {
-            @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                return intercept(request);
-            }
-            @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                return true; // the pages' own nav links are meaningless here
-            }
-        });
-        slot.addView(web, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
-    private void load() {
-        if (web == null) return;
-        boolean night = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
-                == Configuration.UI_MODE_NIGHT_YES;
-        web.loadDataWithBaseURL(BASE, BatteryWebPages.embedded(page, night), "text/html", "utf-8", null);
-        for (int i = 0; i < tabs.length; i++) {
-            boolean on = PAGES[i].equals(page);
+    private void show(String name) {
+        for (int i = 0; i < PAGES.length; i++) {
+            boolean on = PAGES[i].equals(name);
+            pages[i].setVisibility(on ? View.VISIBLE : View.GONE);
             tabs[i].setSelected(on);
         }
     }
 
-    private static WebResourceResponse intercept(WebResourceRequest request) {
-        String path = request.getUrl().getPath();
-        if (path == null) return null;
-        try {
-            if ("/batt-data".equals(path)) return json(BatteryDataHub.dataJson());
-            if ("/batt-totals-reset".equals(path) && "POST".equals(request.getMethod())) {
-                BatteryDataHub.resetTotals();
-                return json("{}");
-            }
-            if ("/batt-history-data".equals(path)) return json(BatteryDataHub.historyJson(request.getUrl().getQueryParameter("range")));
-            if ("/batt-sessions".equals(path)) return json(BatteryDataHub.sessionsJson());
-            if ("/batt-settings-data".equals(path)) return json(BatteryDataHub.settingsJson());
-            if ("/batt-session-charger".equals(path) && "POST".equals(request.getMethod())) {
-                BatteryDataHub.setCharger(request.getUrl().getQueryParameter("start"), request.getUrl().getQueryParameter("charger"));
-                return json("{}");
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Battery page request failed", e);
+    private void setPageVisible(String name, boolean visible) {
+        switch (name) {
+            case "charging": charging.setVisibleNow(visible); if (visible) charging.refresh(); break;
+            case "history": history.setVisibleNow(visible); if (visible) history.refresh(); break;
+            case "settings": settings.setVisibleNow(visible); if (visible) settings.refresh(); break;
+            default: status.setVisibleNow(visible); break;
         }
-        return null;
     }
 
-    private static WebResourceResponse json(String body) {
-        return new WebResourceResponse("application/json", "utf-8",
-                new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)));
+    /** Background thread, once a second while resumed. */
+    private void onTick() {
+        String now = page;
+        if ("status".equals(now)) {
+            pollStatus();
+            return;
+        }
+        main.post(() -> {
+            if (!resumed || !now.equals(page) || ++ticks < SLOW_REFRESH_S) return;
+            ticks = 0;
+            if ("charging".equals(now)) charging.refresh();
+            else if ("history".equals(now)) history.refresh();
+        });
+    }
+
+    private void pollStatus() {
+        JSONObject data;
+        try {
+            data = new JSONObject(BatteryDataHub.dataJson());
+        } catch (Exception e) {
+            Log.e(TAG, "Battery data unavailable", e);
+            data = offline();
+        }
+        final JSONObject snapshot = data;
+        main.post(() -> {
+            if (resumed && "status".equals(page)) status.refresh(snapshot);
+        });
+    }
+
+    private static JSONObject offline() {
+        try {
+            return new JSONObject("{\"streamConnected\":false,\"cells\":[]}");
+        } catch (Exception e) {
+            return new JSONObject();
+        }
     }
 }

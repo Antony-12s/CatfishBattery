@@ -55,18 +55,9 @@
         </LinearLayout>
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/battery_unavailable"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_horizontal"
-        android:paddingTop="80dp"
-        android:text="@string/battery_webview_missing"
-        android:textSize="28sp"
-        android:visibility="gone" />
-
+    <!-- The native pages (StatusPage, ChargingPage, HistoryPage, SettingsPage); BatteryActivity shows one at a time. -->
     <FrameLayout
-        android:id="@+id/battery_web_slot"
+        android:id="@+id/battery_page_slot"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1" />
