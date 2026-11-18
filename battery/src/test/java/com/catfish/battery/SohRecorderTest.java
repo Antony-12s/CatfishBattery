@@ -241,4 +241,36 @@ public class SohRecorderTest {
         assertEquals("canspi", r.entries().get(0).source);
         assertEquals("canspi", new JSONObject(r.json()).getString("source"));
     }
+
+    // ---- odometer next to every SOH row, for SOH per distance ----
+
+    @Test
+    public void everyRowKeepsTheOdometerAndOldFilesLoadWithout() throws Exception {
+        File dir = tempDir();
+        AtomicReference<Integer> gear = new AtomicReference<>(4);
+        SohRecorder r = new SohRecorder(dir, gear::get, () -> 96.5);
+        r.setOdometer(() -> 29161.0);
+        r.becmTick(T0, () -> 96.44);
+        assertEquals(29161.0, r.entries().get(0).km, 0);
+        assertEquals(29161.0, new JSONObject(r.json()).getDouble("km"), 0);
+        List<String> lines = Files.readAllLines(new File(dir, "soh.csv").toPath());
+        assertEquals("ts,soh_pct,source,odometer_km", lines.get(0));
+        assertEquals(T0 + ",96.44,becm,29161", lines.get(1));
+        assertEquals(29161.0, new SohRecorder(dir, gear::get, () -> 96.5).entries().get(0).km, 0); // reloads
+
+        File old = tempDir();
+        Files.write(new File(old, "soh.csv").toPath(), ("ts,soh_pct,source\n" + T0 + ",96.44,becm\n").getBytes());
+        SohRecorder o = new SohRecorder(old, gear::get, () -> 96.5);
+        assertTrue(Double.isNaN(o.entries().get(0).km));
+        assertTrue(new JSONObject(o.json()).isNull("km"));
+    }
+
+    @Test
+    public void unknownOdometerIsLeftBlank() throws Exception {
+        File dir = tempDir();
+        SohRecorder r = new SohRecorder(dir, () -> 4, () -> 96.5);
+        r.setOdometer(() -> Double.NaN);
+        r.becmTick(T0, () -> 96.44);
+        assertEquals(T0 + ",96.44,becm,", Files.readAllLines(new File(dir, "soh.csv").toPath()).get(1));
+    }
 }

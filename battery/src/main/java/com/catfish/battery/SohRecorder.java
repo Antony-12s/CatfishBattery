@@ -50,19 +50,28 @@ final class SohRecorder {
         final long ts;
         final double pct;
         final String source;
+        final double km; // odometer when recorded, NaN when unknown (rows from before 2026-11-18)
 
-        Entry(long ts, double pct) { this(ts, pct, CANSPI); }
+        Entry(long ts, double pct) { this(ts, pct, CANSPI, Double.NaN); }
 
-        Entry(long ts, double pct, String source) {
+        Entry(long ts, double pct, String source) { this(ts, pct, source, Double.NaN); }
+
+        Entry(long ts, double pct, String source, double km) {
             this.ts = ts;
             this.pct = pct;
             this.source = source;
+            this.km = km;
         }
     }
 
     private final File file;
     private final Supplier<Integer> gear;
     private final Callable<Double> fetch;
+    static final String HEADER = "ts,soh_pct,source,odometer_km";
+    private volatile Supplier<Double> odometer = () -> Double.NaN;
+
+    /** Odometer in km (read only) stored next to every SOH row, for SOH per distance. */
+    void setOdometer(Supplier<Double> odometer) { this.odometer = odometer; }
     private final List<Entry> entries = new ArrayList<>();
     private boolean recordedThisPark;
     private boolean becmRunning;
@@ -198,18 +207,25 @@ final class SohRecorder {
     }
 
     private void append(long now, double pct, String source) {
-        entries.add(new Entry(now, pct, source));
+        Double read = odometer.get();
+        double km = read != null && read >= 0 && read < 2_000_000 ? read : Double.NaN;
+        entries.add(new Entry(now, pct, source, km));
         try {
             if (!file.exists()) {
                 File parent = file.getParentFile();
                 if (parent != null) parent.mkdirs();
-                Files.write(file.toPath(), "ts,soh_pct,source\n".getBytes(StandardCharsets.UTF_8));
+                Files.write(file.toPath(), (HEADER + "\n").getBytes(StandardCharsets.UTF_8));
             }
-            Files.write(file.toPath(), String.format(Locale.ROOT, "%d,%.2f,%s%n", now, pct, source).getBytes(StandardCharsets.UTF_8),
+            Files.write(file.toPath(), (row(entries.get(entries.size() - 1)) + "\n").getBytes(StandardCharsets.UTF_8),
                     StandardOpenOption.APPEND);
         } catch (IOException e) {
             Log.w(TAG, "SOH history not saved", e);
         }
+    }
+
+    private static String row(Entry e) {
+        return String.format(Locale.ROOT, "%d,%.2f,%s,%s", e.ts, e.pct, e.source,
+                Double.isNaN(e.km) ? "" : String.format(Locale.ROOT, "%.0f", e.km));
     }
 
     /** Logs only when the outcome changes, so a long park does not flood logcat. */
@@ -217,6 +233,16 @@ final class SohRecorder {
         if (outcome.equals(lastOutcome)) return;
         lastOutcome = outcome;
         Log.i(TAG, outcome);
+    }
+
+    /** Rewrites soh.csv in the current format through a temp file, so a power cut cannot lose the history. */
+    private void upgrade() throws IOException {
+        StringBuilder out = new StringBuilder(HEADER).append('\n');
+        for (Entry e : entries) out.append(row(e)).append('\n');
+        File tmp = new File(file.getPath() + ".tmp");
+        Files.write(tmp.toPath(), out.toString().getBytes(StandardCharsets.UTF_8));
+        Files.move(tmp.toPath(), file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                java.nio.file.StandardCopyOption.ATOMIC_MOVE);
     }
 
     synchronized List<Entry> entries() {
@@ -229,6 +255,7 @@ final class SohRecorder {
         Entry prev = entries.size() < 2 ? null : entries.get(entries.size() - 2);
         return "{\"pct\":" + (last == null ? "null" : last.pct) + ",\"atMs\":" + (last == null ? "null" : last.ts)
                 + ",\"prevPct\":" + (prev == null ? "null" : prev.pct) + ",\"prevAtMs\":" + (prev == null ? "null" : prev.ts)
+                + ",\"km\":" + (last == null || Double.isNaN(last.km) ? "null" : String.format(Locale.ROOT, "%.0f", last.km))
                 + ",\"count\":" + entries.size() + ",\"source\":" + (last == null ? "null" : "\"" + last.source + "\"")
                 + ",\"state\":\"" + state + "\"}";
     }
@@ -236,14 +263,17 @@ final class SohRecorder {
     private void load() {
         if (!file.exists()) return;
         try {
-            for (String line : Files.readAllLines(file.toPath(), StandardCharsets.UTF_8)) {
-                String[] parts = line.split(",");
-                if (parts.length != 2 && parts.length != 3) continue;
+            List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
+            for (String line : lines) {
+                String[] parts = line.split(",", -1);
+                if (parts.length < 2 || parts.length > 4) continue;
                 try {
-                    String source = parts.length == 3 && BECM.equals(parts[2].trim()) ? BECM : CANSPI;
-                    entries.add(new Entry(Long.parseLong(parts[0].trim()), Double.parseDouble(parts[1].trim()), source));
+                    String source = parts.length >= 3 && BECM.equals(parts[2].trim()) ? BECM : CANSPI;
+                    double km = parts.length == 4 && !parts[3].trim().isEmpty() ? Double.parseDouble(parts[3].trim()) : Double.NaN;
+                    entries.add(new Entry(Long.parseLong(parts[0].trim()), Double.parseDouble(parts[1].trim()), source, km));
                 } catch (NumberFormatException skip) { } // header or a damaged line
             }
+            if (!lines.isEmpty() && !HEADER.equals(lines.get(0))) upgrade(); // older header: rewrite, rows kept
         } catch (IOException e) {
             Log.w(TAG, "SOH history unreadable", e);
         }

@@ -28,6 +28,11 @@ final class BatteryDataHub {
         logger.start();
         soh = new SohRecorder(new java.io.File(app.getFilesDir(), "battery-history"), SohRecorder.carGear(app),
                 SohRecorder::fetchEgyCdn);
+        // PERF_ODOMETER from the read-only VHAL stream cache (the stream sends every property once on connect)
+        soh.setOdometer(() -> {
+            Float km = VehiclePropertyManager.floatCache().get(0x11600204);
+            return km == null ? Double.NaN : km.doubleValue();
+        });
         soh.start();
     }
 
