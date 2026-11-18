@@ -15,12 +15,24 @@ public class FlowGeometryTest {
         assertEquals(235, FlowGeometry.originY(940, scale), 0);
     }
 
-    @Test public void dotsTravelAtConstantSpeedAcrossUnequalSegments() {
+    @Test public void dotsTravelAlongTheStaircaseWires() {
         float[] point = new float[2];
-        FlowGeometry.position(FlowGeometry.LV, 0.5f, point);
-        assertArrayEquals(new float[]{1272, 383}, point, 0);
+        FlowGeometry.position(FlowGeometry.DC, 0.5f, point);
+        assertArrayEquals(new float[]{642, 358}, point, 0);
         FlowGeometry.position(FlowGeometry.HV, 1, point);
-        assertArrayEquals(new float[]{900, 210}, point, 0);
+        assertArrayEquals(new float[]{930, 192}, point, 0);
+        FlowGeometry.position(FlowGeometry.LINK, 0, point);
+        assertArrayEquals(new float[]{1105, 108}, point, 0);
+    }
+
+    @Test public void chargingAlsoRunsThePackWireAndLinkTowardsThePack() {
+        int charging = FlowGeometry.activeRoutes(-17.9, true, true);
+        int drawn = FlowGeometry.drawn(charging);
+        assertEquals((1 << FlowGeometry.HV) | (1 << FlowGeometry.DC) | (1 << FlowGeometry.LV)
+                | (1 << FlowGeometry.CHARGER) | (1 << FlowGeometry.LINK), drawn);
+        assertEquals(1 << FlowGeometry.LINK | 1 << FlowGeometry.HV,
+                FlowGeometry.drawn(FlowGeometry.activeRoutes(5, false, false)));
+        assertEquals(0, FlowGeometry.drawn(0));
     }
 
     @Test public void routingUsesOriginalThresholdsAndPlugHandles() {

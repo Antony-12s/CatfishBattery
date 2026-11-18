@@ -67,4 +67,33 @@ public class SchematicReadingsTest {
         assertEquals(3300,offline.cells[0],0);
         assertTrue(Double.isNaN(offline.temperatures[0]));
     }
+
+    @Test public void powerLineReadsVoltsTimesAmpsEqualsPower() {
+        assertEquals("391.5 V \u00d7 2.7 A = 1.1 kW OUT",SchematicReadings.powerLine(391.5,2.7));
+        assertEquals("391.5 V \u00d7 17.9 A = 7.0 kW IN",SchematicReadings.powerLine(391.5,-17.9));
+        assertEquals("-- \u00d7 -- = --",SchematicReadings.powerLine(Double.NaN,Double.NaN));
+    }
+
+    @Test public void chargingCardShowsTargetEtaAndAddedEnergy() throws Exception {
+        JSONObject reading = new JSONObject("""
+                {"streamConnected":true,"soc":83,"battVoltageV":391.5,"battCurrentA":-17.9,
+                 "flow":{"obcHandle":2,"obcV":230,"obcA":30.4,"chargeKwh":3.6,"chargeEtaMin":715,"targetSoc":100}}
+                """);
+        SchematicData d = new SchematicData(reading);
+        assertTrue(d.charging);
+        assertEquals("Charging \u00b7 AC 7.0 kW",d.chargeTitle);
+        assertEquals("Full in 11 h 55 min",d.chargeEta);
+        assertEquals("83 % \u2192 100 %",d.socTarget);
+        assertEquals(.83,d.socProgress,1e-9);
+        assertEquals("3.6 kWh",d.chargeAdded);
+        assertEquals("AC INLET",d.inletLabel);
+        reading.getJSONObject("flow").put("targetSoc",80).put("dcHandle",2).remove("obcHandle");
+        SchematicData dc = new SchematicData(reading);
+        assertEquals("To 80 % in 11 h 55 min",dc.chargeEta);
+        assertEquals("DC INLET",dc.inletLabel);
+        SchematicData off = new SchematicData(null);
+        assertEquals("",off.chargeEta);
+        assertEquals("--",off.chargeAdded);
+        assertEquals("HV PACK \u00b7 400 V",off.kicker);
+    }
 }

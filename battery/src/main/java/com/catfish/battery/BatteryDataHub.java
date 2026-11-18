@@ -79,7 +79,10 @@ final class BatteryDataHub {
         json = json.substring(0, json.length() - 1) + ",\"lastUpdatedMs\":" + updated + "}";
         if (l != null) json = json.substring(0, json.length() - 1) + ",\"totals\":" + l.totalsJson() + "}";
         SohRecorder s = soh();
-        return s == null ? json : json.substring(0, json.length() - 1) + ",\"soh\":" + s.json() + "}";
+        if (s == null) return json;
+        Integer gear = s.gearNow(System.currentTimeMillis());
+        return json.substring(0, json.length() - 1) + ",\"soh\":" + s.json() + ",\"gear\":" + gear
+                + ",\"leftParkMs\":" + s.trip.leftParkMs() + "}";
     }
 
     static void resetTotals() {

@@ -74,6 +74,12 @@ final class SchematicReadings {
         return UiFormat.fixed(kwh,1," kWh") + " in · " + UiFormat.duration(minutes) + " left";
     }
 
+    /** "391.5 V × 2.7 A = 1.1 kW OUT": the pack's volts times amps, then the power with its direction. */
+    static String powerLine(double volts, double amps) {
+        return UiFormat.fixed(volts,1," V") + " \u00d7 " + UiFormat.fixed(Math.abs(amps),1," A") + " = "
+                + packPower(volts * amps);
+    }
+
     static String packPower(double watts) {
         double absolute = Math.abs(watts);
         return UiFormat.power(absolute) + (absolute >= 30 ? watts < 0 ? " IN" : " OUT" : "");

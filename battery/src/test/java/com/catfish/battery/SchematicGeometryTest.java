@@ -16,13 +16,11 @@ public class SchematicGeometryTest {
         assertEquals(382.5f,tall.y(0),0f);
         assertEquals(865f,tall.designX(tall.x(865)),0f);
         assertEquals(341f,tall.designY(tall.y(341)),0f);
-        assertArrayEquals(new float[]{-61,110,-80,110,-80,462,865,462,865,210,900,210},
-                SchematicGeometry.flowPath("hv"),0f);
-        assertArrayEquals(new float[]{865,341,900,341},SchematicGeometry.flowPath("dc"),0f);
-        assertArrayEquals(new float[]{1258,341,1272,341,1272,425,1258,425},
-                SchematicGeometry.flowPath("lv"),0f);
-        assertArrayEquals(new float[]{-60,425,-70,425,-70,201,-64,201},
-                SchematicGeometry.flowPath("chg"),0f);
+        assertArrayEquals(new float[]{834,192,930,192},SchematicGeometry.flowPath("hv"),0f);
+        assertArrayEquals(new float[]{584,358,700,358},SchematicGeometry.flowPath("dc"),0f);
+        assertArrayEquals(new float[]{980,358,1004,358},SchematicGeometry.flowPath("lv"),0f);
+        assertArrayEquals(new float[]{900,266,930,266},SchematicGeometry.flowPath("chg"),0f);
+        assertArrayEquals(new float[]{1105,108,1105,134},SchematicGeometry.flowPath("link"),0f);
     }
 
     @Test public void projectsOriginalFacesAndAllCellIds() {

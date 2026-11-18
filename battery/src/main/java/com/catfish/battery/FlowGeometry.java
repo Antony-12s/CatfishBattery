@@ -3,18 +3,16 @@ package com.catfish.battery;
 /** Pack-local positions, including the original margins for the external nodes. */
 final class FlowGeometry {
     static final int LEFT = -100, WIDTH = 1390, HEIGHT = 470;
-    static final int HV = 0, DC = 1, LV = 2, CHARGER = 3;
-    private static final int[][] ROUTES = {
-            {-61, 110, -80, 110, -80, 462, 865, 462, 865, 210, 900, 210},
-            {865, 341, 900, 341},
-            {1258, 341, 1272, 341, 1272, 425, 1258, 425},
-            {-60, 425, -70, 425, -70, 201, -64, 201}
+    static final int HV = 0, DC = 1, LV = 2, CHARGER = 3, LINK = 4;
+    private static final float[][] ROUTES = {
+            SchematicGeometry.flowPath("hv"), SchematicGeometry.flowPath("dc"), SchematicGeometry.flowPath("lv"),
+            SchematicGeometry.flowPath("chg"), SchematicGeometry.flowPath("link")
     };
     private static final float[][] LENGTHS = new float[ROUTES.length][];
 
     static {
         for (int route = 0; route < ROUTES.length; route++) {
-            int[] points = ROUTES[route];
+            float[] points = ROUTES[route];
             float[] lengths = new float[points.length / 2];
             for (int i = 1; i < lengths.length; i++) {
                 int p = 2 * i;
@@ -48,8 +46,19 @@ final class FlowGeometry {
         return routes;
     }
 
+    /**
+     * Routes that show moving dots: energy out of the pack also runs the HV PACK -> Loads link; while charging the
+     * pack wire and the link run too (the overlay reverses them, towards the pack).
+     */
+    static int drawn(int active) {
+        int routes = active;
+        if ((active & (1 << HV)) != 0) routes |= 1 << LINK;
+        if ((active & (1 << CHARGER)) != 0) routes |= (1 << HV) | (1 << LINK);
+        return routes;
+    }
+
     static void position(int route, float fraction, float[] xy) {
-        int[] points = ROUTES[route];
+        float[] points = ROUTES[route];
         float[] lengths = LENGTHS[route];
         float distance = fraction * lengths[lengths.length - 1];
         int segment = 1;

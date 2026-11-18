@@ -60,7 +60,8 @@ final class StatusPage extends FrameLayout {
 
     private boolean visible, cellsShown;
     private int liveColor;
-    private JSONObject lastData, settings;
+    private JSONObject lastData, settings, history;
+    private long historyAt;
 
     StatusPage(Context context) {
         super(context);
@@ -240,6 +241,9 @@ final class StatusPage extends FrameLayout {
 
         if (cellsShown) cells.setModel(CellsModel.from(data));
         else {
+            long now = System.currentTimeMillis();
+            if (now - historyAt > 30_000) loadHistory(now); // the sparkline's points: the log, read every 30 s
+            schematic.setTrend(history == null ? null : SocTrend.of(history, data, now, TimeZone.getDefault()));
             schematic.setData(data);
             flow.setData(data);
         }
@@ -286,6 +290,14 @@ final class StatusPage extends FrameLayout {
                 settings = loaded;
                 if (lastData != null) draw(lastData);
             });
+        });
+    }
+
+    private void loadHistory(long now) {
+        historyAt = now;
+        submit(() -> {
+            JSONObject loaded = new JSONObject(BatteryDataHub.historyJson("24h"));
+            main.post(() -> history = loaded);
         });
     }
 

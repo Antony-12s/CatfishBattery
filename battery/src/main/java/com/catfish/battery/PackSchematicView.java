@@ -30,7 +30,7 @@ final class PackSchematicView extends View {
     private static final Typeface MONO = Typeface.create("monospace", Typeface.BOLD);
     private static final DashPathEffect DASH = new DashPathEffect(new float[]{4, 5}, 0);
     private static final String[] LOAD_NAMES = {"Motor", "Cabin climate", "Battery thermal", "Other"};
-    private static final String[] FLOW_KEYS = {"hv", "dc", "lv", "chg"};
+    private static final String[] FLOW_KEYS = {"hv", "dc", "lv", "chg", "link"};
 
     private final Shader nightPanel = new RadialGradient(0,0,1,
             new int[]{0xff16161b,0xff0d0d10,0xff09090b},new float[]{0,.6f,1},Shader.TileMode.CLAMP);
@@ -40,6 +40,10 @@ final class PackSchematicView extends View {
     private final DrawableBox[] cells = new DrawableBox[118];
     private final List<DrawableSensor> sensors = new ArrayList<>();
     private final Path[] flows = new Path[FLOW_KEYS.length];
+    private final float[][] flowPaths = new float[FLOW_KEYS.length][];
+    private final Path sparkLine = new Path(), sparkArea = new Path();
+    private float sparkEndX, sparkEndY;
+    private SocTrend trend;
     private final Point shadow = iso(180,98,0), front = iso(-1,170,20);
     private final Path busPositive = line(iso(54,87,45),iso(360,87,45));
     private final Path busNegative = line(iso(54,92,45),iso(360,92,45));
@@ -61,7 +65,10 @@ final class PackSchematicView extends View {
             if (box.cell() > 0) cells[box.cell() - 1] = drawable;
         }
         for (Sensor sensor : sensors()) sensors.add(new DrawableSensor(sensor));
-        for (int i = 0; i < flows.length; i++) flows[i] = polyline(flowPath(FLOW_KEYS[i]));
+        for (int i = 0; i < flows.length; i++) {
+            flowPaths[i] = flowPath(FLOW_KEYS[i]);
+            flows[i] = polyline(flowPaths[i]);
+        }
         setClickable(true);
         setContentDescription("Battery pack schematic and energy flow");
     }
@@ -146,61 +153,136 @@ final class PackSchematicView extends View {
         postInvalidateOnAnimation();
     }
 
+    // Staircase layout around the pack's diamond (design units, see SchematicGeometry.flowPath for the wires):
+    // step 1 the wide HV PACK card above the pack's rising edge, step 2 the Loads/Charging card right of the apex with
+    // the inlet on its left, step 3 DC-DC and 12 V side by side under the falling edge.
+    private static final float HERO_L = 790, HERO_T = 6, HERO_B = 108, RIGHT = 1280;
+    private static final float LOADS_L = 930, LOADS_T = 134, LOADS_B = 302;
+    private static final float INLET_L = 796, INLET_R = 900, INLET_T = 250, INLET_B = 282;
+    private static final float LOW_T = 316, LOW_B = 400, DC_L = 700, DC_R = 980, LV_L = 1004;
+    private static final float SPARK_L = 1084, SPARK_R = 1266, SPARK_T = 38, SPARK_B = 84;
+
+    void setTrend(SocTrend trend) {
+        this.trend = trend;
+        invalidate();
+    }
+
     private void drawSystem(Canvas canvas) {
         int dim = tone(0x80e2c08d,0xff8298af), active = tone(CHAMPAGNE,palette.accent);
-        boolean[] enabled = {data.hvOn,data.dcOn,data.dcOn,data.charging};
-        paint.setPathEffect(DASH);
+        int flowColor = data.charging ? palette.good : active;
+        boolean[] enabled = {data.hvOn || data.charging,data.dcOn,data.dcOn,data.charging,data.hvOn || data.charging};
         for (int i = 0; i < flows.length; i++) {
-            if (i != 3 || data.plugged) stroke(canvas,flows[i],enabled[i] ? active : dim,2.5f);
+            paint.setPathEffect(enabled[i] ? null : DASH);
+            stroke(canvas,flows[i],enabled[i] ? (i == 3 || i == 0 && data.charging || i == 4 && data.charging ? palette.good : active) : dim,2.5f);
+            paint.setPathEffect(null);
+            float[] xy = flowPaths[i];
+            circle(canvas,new Point(xy[0],xy[1]),4,enabled[i] ? flowColor : dim,0,0);
+            circle(canvas,new Point(xy[xy.length-2],xy[xy.length-1]),4,enabled[i] ? flowColor : dim,0,0);
         }
-        paint.setPathEffect(null);
-        circle(canvas,new Point(865,341),3.6f,data.dcOn ? active : dim,0,0);
-        label(canvas,"HV PACK · 400 V",1258,28,15,tone(CHAMPAGNE,kicker()),MONO,Paint.Align.RIGHT);
-        Typeface socFont = palette.night ? LIGHT : BOLD;
-        label(canvas,data.soc,1258,72,46,ink(),socFont,Paint.Align.RIGHT);
-        // SOH is its own column at a fixed spot left of the SOC hero, so it never jumps with the SOC width
-        float sohRight = 1258 - measure("100.0%",46,socFont) - 30;
-        label(canvas,"SOH",sohRight,46,13,kicker(),MONO,Paint.Align.RIGHT);
-        if (data.sohReading) spinner(canvas,sohRight-14,63,11);
-        else label(canvas,data.soh,sohRight,72,24,ink(),BOLD,Paint.Align.RIGHT);
-        label(canvas,data.range,1258,98,17,muted(),NORMAL,Paint.Align.RIGHT);
-        float rangeWidth = data.range.isEmpty() ? 0 : measure(data.range,17,NORMAL)+10;
-        label(canvas,data.packPower,1258-rangeWidth,98,20,data.powerIn ? palette.good : ink(),BOLD,Paint.Align.RIGHT);
-        label(canvas,data.packVA,1258,120,17,muted(),NORMAL,Paint.Align.RIGHT);
 
-        node(canvas,900,132,1258,288);
-        title(canvas,data.loadsTitle,914,158);
-        for (int i = 0; i < LOAD_NAMES.length; i++) {
-            float y = 180 + i * 30;
-            readLabel(canvas,LOAD_NAMES[i],914,y,muted());
-            value(canvas,data.loadPower[i],1244,y);
-            round(canvas,914,y+7,1244,y+11,2,tone(0x1fe2c08d,0xffdce6f0),0);
-            if (data.shares[i] > 0) {
-                round(canvas,914,y+7,914+231*(float)data.shares[i],y+11,2,
-                        tone(CHAMPAGNE,palette.accent),0);
+        // step 1: HV PACK card
+        node(canvas,HERO_L,HERO_T,RIGHT,HERO_B);
+        float x0 = HERO_L + 16;
+        label(canvas,data.kicker,x0,26,14,tone(CHAMPAGNE,kicker()),MONO,Paint.Align.LEFT);
+        Typeface socFont = palette.night ? LIGHT : BOLD;
+        label(canvas,data.soc,x0,74,46,ink(),socFont,Paint.Align.LEFT);
+        float sep = x0 + measure("100.0%",46,socFont) + 16;
+        round(canvas,sep,40,sep+1.5f,78,0,tone(0x40e2c08d,palette.line),0);
+        float sohX = sep + 16;
+        label(canvas,"SOH",sohX,48,13,kicker(),MONO,Paint.Align.LEFT);
+        if (data.sohReading) spinner(canvas,sohX+12,64,11);
+        else label(canvas,data.soh,sohX,74,24,ink(),BOLD,Paint.Align.LEFT);
+        label(canvas,data.powerLine,x0,99,16,data.powerIn ? palette.good : tone(CHAMPAGNE,ink()),BOLD,Paint.Align.LEFT);
+        drawTrend(canvas,flowColor);
+
+        // step 2: Loads, or the charge in progress
+        node(canvas,LOADS_L,LOADS_T,RIGHT,LOADS_B,data.charging ? palette.good : 0);
+        float lx = LOADS_L + 14, rx = RIGHT - 14;
+        if (data.charging) {
+            label(canvas,data.chargeTitle,lx,LOADS_T+24,19,palette.good,BOLD,Paint.Align.LEFT);
+            label(canvas,data.chargeEta,rx,LOADS_T+24,15,palette.good,BOLD,Paint.Align.RIGHT);
+            row(canvas,"SOC",data.socTarget,LOADS_T+50,data.socProgress,palette.good);
+            row(canvas,"Added",data.chargeAdded,LOADS_T+78,-1,0);
+            row(canvas,LOAD_NAMES[1],data.loadPower[1],LOADS_T+106,data.shares[1],active);
+            row(canvas,LOAD_NAMES[2],data.loadPower[2],LOADS_T+134,data.shares[2],active);
+        } else {
+            title(canvas,data.loadsTitle,lx,LOADS_T+24);
+            for (int i = 0; i < LOAD_NAMES.length; i++) {
+                row(canvas,LOAD_NAMES[i],data.loadPower[i],LOADS_T+50+i*28,data.shares[i],active);
             }
         }
-        node(canvas,900,298,1258,384);
-        title(canvas,"DC-DC",914,322);
-        round(canvas,1192,306,1244,328,11,
-                data.dcOn ? tone(0x294fe09a,0xffe1f4e9) : nodeColor(),data.dcOn ? palette.good : dim);
-        label(canvas,data.dcState,1218,321.5f,13,data.dcOn ? palette.good : muted(),BOLD,Paint.Align.CENTER);
-        readLabel(canvas,"HV side",914,348,muted());
-        value(canvas,data.dcHigh,1244,348);
-        readLabel(canvas,"12 V",914,372,muted());
-        value(canvas,data.dcLow,1244,372);
+        boolean plugged = data.plugged;
+        round(canvas,INLET_L,INLET_T,INLET_R,INLET_B,16,plugged ? tone(0x294fe09a,0xffe1f4e9) : nodeColor(),
+                plugged ? palette.good : tone(0x38e2c08d,palette.line));
+        label(canvas,data.inletLabel,(INLET_L+INLET_R)/2,INLET_T+21,13,plugged ? palette.good : muted(),MONO,Paint.Align.CENTER);
 
-        node(canvas,900,394,1258,456);
-        title(canvas,"12 V battery",914,418);
-        value(canvas,data.lvSoc,1244,418);
-        readLabel(canvas,data.lvVoltage,914,444,bandInk(data.lvBand,muted()));
-        value(canvas,data.lvState,1244,444);
-        if (data.plugged) {
-            node(canvas,-60,394,196,456);
-            title(canvas,data.dcPlug ? "DC charger" : "AC charger",-48,418);
-            value(canvas,data.chargePower,184,418);
-            readLabel(canvas,data.chargeNote,-48,444,muted());
+        // step 3: DC-DC and the 12 V battery side by side
+        node(canvas,DC_L,LOW_T,DC_R,LOW_B);
+        title(canvas,"DC-DC",DC_L+14,LOW_T+24);
+        round(canvas,DC_R-66,LOW_T+8,DC_R-14,LOW_T+30,11,
+                data.dcOn ? tone(0x294fe09a,0xffe1f4e9) : nodeColor(),data.dcOn ? palette.good : dim);
+        label(canvas,data.dcState,DC_R-40,LOW_T+23.5f,13,data.dcOn ? palette.good : muted(),BOLD,Paint.Align.CENTER);
+        readLabel(canvas,"HV side",DC_L+14,LOW_T+50,muted());
+        value(canvas,data.dcHigh,DC_R-14,LOW_T+50);
+        readLabel(canvas,"12 V",DC_L+14,LOW_T+74,muted());
+        value(canvas,data.dcLow,DC_R-14,LOW_T+74);
+        node(canvas,LV_L,LOW_T,RIGHT,LOW_B);
+        title(canvas,"12 V battery",LV_L+14,LOW_T+24);
+        value(canvas,data.lvSoc,RIGHT-14,LOW_T+24);
+        readLabel(canvas,"Voltage",LV_L+14,LOW_T+50,muted());
+        label(canvas,data.lvVoltage,RIGHT-14,LOW_T+50,18,bandInk(data.lvBand,ink()),BOLD,Paint.Align.RIGHT);
+        readLabel(canvas,"State",LV_L+14,LOW_T+74,muted());
+        value(canvas,data.lvState,RIGHT-14,LOW_T+74);
+    }
+
+    /** One card row: label left, value right, an optional share bar underneath (share < 0: no bar). */
+    private void row(Canvas c,String name,String reading,float y,double share,int barColor) {
+        readLabel(c,name,LOADS_L+14,y,muted());
+        value(c,reading,RIGHT-14,y);
+        if (share < 0) return;
+        round(c,LOADS_L+14,y+6,RIGHT-14,y+9,1.5f,tone(0x1fe2c08d,0xffdce6f0),0);
+        float w = (RIGHT-LOADS_L-28) * (float) Math.max(0,Math.min(1,share));
+        if (w > 0) round(c,LOADS_L+14,y+6,LOADS_L+14+w,y+9,1.5f,barColor,0);
+    }
+
+    /** The SOC sparkline in the HV PACK card; its window follows the car's state (SocTrend). */
+    private void drawTrend(Canvas c,int color) {
+        SocTrend t = trend;
+        label(c,t == null ? "SOC" : t.label,SPARK_L,26,12,kicker(),MONO,Paint.Align.LEFT);
+        if (t == null || t.empty()) {
+            label(c,"collecting data",(SPARK_L+SPARK_R)/2,(SPARK_T+SPARK_B)/2+5,13,muted(),NORMAL,Paint.Align.CENTER);
+            return;
         }
+        label(c,t.delta,SPARK_R,26,13,ink(),BOLD,Paint.Align.RIGHT);
+        float span = Math.max(1,t.toMs - t.fromMs), range = (float) Math.max(1e-6,t.hi - t.lo);
+        sparkLine.rewind();
+        for (int i = 0; i < t.soc.length; i++) {
+            float x = SPARK_L + (float) ((t.ts[i] - t.fromMs) / span) * (SPARK_R - SPARK_L);
+            float y = SPARK_B - (float) ((t.soc[i] - t.lo) / range) * (SPARK_B - SPARK_T);
+            if (i == 0) sparkLine.moveTo(x,y); else sparkLine.lineTo(x,y);
+            if (i == t.soc.length - 1) { sparkEndX = x; sparkEndY = y; }
+        }
+        float startX = SPARK_L + (float) ((t.ts[0] - t.fromMs) / span) * (SPARK_R - SPARK_L);
+        sparkArea.set(sparkLine);
+        sparkArea.lineTo(sparkEndX,SPARK_B);
+        sparkArea.lineTo(startX,SPARK_B);
+        sparkArea.close();
+        round(c,SPARK_L,SPARK_B,SPARK_R,SPARK_B+1,0,tone(0xff26262c,palette.line),0);
+        fill(color);
+        paint.setAlpha(30);
+        c.drawPath(sparkArea,paint);
+        if (Double.isFinite(t.target)) {
+            float y = SPARK_B - (float) ((t.target - t.lo) / range) * (SPARK_B - SPARK_T);
+            paint.setPathEffect(DASH);
+            outline(palette.good,1.5f);
+            c.drawLine(SPARK_L,y,SPARK_R,y,paint);
+            paint.setPathEffect(null);
+            label(c,UiFormat.fixed(t.target,0," %"),SPARK_L,y-4,11,palette.good,NORMAL,Paint.Align.LEFT);
+        }
+        stroke(c,sparkLine,color,2.2f);
+        circle(c,new Point(sparkEndX,sparkEndY),4,color,0,0);
+        label(c,t.fromText,SPARK_L,SPARK_B+16,11,muted(),NORMAL,Paint.Align.LEFT);
+        label(c,"now",SPARK_R,SPARK_B+16,11,muted(),NORMAL,Paint.Align.RIGHT);
     }
 
     private void drawSensor(Canvas canvas, DrawableSensor drawable) {
@@ -318,8 +400,11 @@ final class PackSchematicView extends View {
     private int kicker() { return tone(0xff8f9cb3,palette.muted); }
     private int nodeColor() { return tone(0xe6121216,palette.surface); }
 
-    private void node(Canvas c,float l,float t,float r,float b) {
-        round(c,l,t,r,b,12,nodeColor(),tone(0x38e2c08d,palette.line));
+    private void node(Canvas c,float l,float t,float r,float b) { node(c,l,t,r,b,0); }
+
+    /** A card; accent != 0 draws its border in that colour (the Loads card turns green while charging). */
+    private void node(Canvas c,float l,float t,float r,float b,int accent) {
+        round(c,l,t,r,b,8,nodeColor(),accent != 0 ? accent : tone(0x38e2c08d,palette.line));
     }
     private void title(Canvas c,String s,float x,float y) { label(c,s,x,y,20,tone(0xfff4efe7,ink()),BOLD,Paint.Align.LEFT); }
     private void value(Canvas c,String s,float x,float y) { label(c,s,x,y,18,ink(),BOLD,Paint.Align.RIGHT); }

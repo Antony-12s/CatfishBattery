@@ -155,8 +155,17 @@ final class SohRecorder {
         executor = null;
     }
 
-    synchronized void tick(long now) {
+    final TripClock trip = new TripClock();
+
+    /** The current GEAR_SELECTION (read only), also fed to the trip clock; null when unavailable. */
+    Integer gearNow(long now) {
         Integer g = gear.get();
+        trip.observe(g, now);
+        return g;
+    }
+
+    synchronized void tick(long now) {
+        Integer g = gearNow(now);
         if (g == null || g != GEAR_PARK) {
             recordedThisPark = false;
             state = g == null ? "gear?" : "not in P";

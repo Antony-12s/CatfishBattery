@@ -12,7 +12,9 @@ final class SchematicData {
     final SchematicReadings.Cells extremes;
     final boolean hvOn, dcOn, plugged, dcPlug, charging;
     final String soc, soh, packPower, range, packVA, loadsTitle, dcState, dcHigh, dcLow,
-            lvSoc, lvVoltage, lvState, chargePower, chargeNote;
+            lvSoc, lvVoltage, lvState, chargePower, chargeNote,
+            kicker, powerLine, chargeTitle, chargeEta, socTarget, chargeAdded, inletLabel;
+    final double socProgress;
     final SchematicReadings.Band lvBand;
     final boolean powerIn;
     final boolean sohReading; // BECM DID 496D read in progress: the view shows a spinner in place of the value
@@ -86,6 +88,18 @@ final class SchematicData {
         double charger = dcPlug ? number(current,"dcChargeKw",0,400) * 1000
                 : number(flow,"obcV",0,1000) * number(flow,"obcA",0,1000);
         chargePower = UiFormat.power(Double.isFinite(charger) ? charger : charging ? -watts : Double.NaN);
+        double socNow = number(current,"soc",0,100), target = number(flow,"targetSoc",1,100);
+        double eta = charging ? number(flow,"chargeEtaMin",0,1440) : Double.NaN;
+        double chargerW = Double.isFinite(charger) ? charger : charging ? -watts : Double.NaN;
+        kicker = "HV PACK \u00b7 400 V" + (range.isEmpty() ? "" : " \u00b7 " + range);
+        powerLine = SchematicReadings.powerLine(volts,amps);
+        chargeTitle = "Charging \u00b7 " + (dcPlug ? "DC" : "AC") + (Double.isFinite(chargerW) ? " " + UiFormat.power(chargerW) : "");
+        chargeEta = Double.isNaN(eta) ? "" : (Double.isNaN(target) || target >= 100 ? "Full in " : "To " + UiFormat.fixed(target,0," %") + " in ")
+                + UiFormat.duration(eta);
+        socTarget = UiFormat.fixed(socNow,0," %") + (Double.isNaN(target) ? "" : " \u2192 " + UiFormat.fixed(target,0," %"));
+        socProgress = Double.isFinite(socNow) ? socNow / (Double.isFinite(target) ? target : 100) : 0;
+        chargeAdded = UiFormat.fixed(number(flow,"chargeKwh",0,200),1," kWh");
+        inletLabel = dcPlug ? "DC INLET" : "AC INLET";
         chargeNote = SchematicReadings.chargeNote(number(flow,"chargeKwh",0,200),
                 charging ? number(flow,"chargeEtaMin",0,1440) : Double.NaN);
     }

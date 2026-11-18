@@ -35,13 +35,19 @@ public final class SchematicGeometry {
                 (height - HEIGHT * scale) / 2);
     }
 
-    /** Interleaved design-space x/y coordinates in forward flow order. */
+    /**
+     * Interleaved design-space x/y coordinates in forward flow order. Staircase layout (2026-11-18): every wire is one
+     * straight run from a port on the pack outline or a card edge into the middle of the next card's edge.
+     * hv: pack apex -> Loads card; dc: pack lower-right face -> DC-DC; lv: DC-DC -> 12 V; chg: inlet -> Loads card;
+     * link: HV PACK card -> Loads card.
+     */
     public static float[] flowPath(String key) {
         return switch (key) {
-            case "hv" -> new float[]{-61,110, -80,110, -80,462, 865,462, 865,210, 900,210};
-            case "dc" -> new float[]{865,341, 900,341};
-            case "lv" -> new float[]{1258,341, 1272,341, 1272,425, 1258,425};
-            case "chg" -> new float[]{-60,425, -70,425, -70,201, -64,201};
+            case "hv" -> new float[]{834,192, 930,192};
+            case "dc" -> new float[]{584,358, 700,358};
+            case "lv" -> new float[]{980,358, 1004,358};
+            case "chg" -> new float[]{900,266, 930,266};
+            case "link" -> new float[]{1105,108, 1105,134};
             default -> throw new IllegalArgumentException(key);
         };
     }
