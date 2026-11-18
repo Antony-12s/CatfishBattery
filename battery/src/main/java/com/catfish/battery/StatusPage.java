@@ -142,9 +142,9 @@ final class StatusPage extends FrameLayout {
         LinearLayout leg = new LinearLayout(context);
         legendCells = s.text(context, 20, 600, s.muted);
         legendSensors = s.text(context, 20, 600, s.muted);
-        leg.addView(scale(context, legendCells, new String[] { "\u22642 mV", "\u22648 mV", ">8 mV" }, true),
+        leg.addView(scale(context, legendCells, new String[] { "\u22642 mV", "\u22648 mV", ">8 mV" }),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        leg.addView(scale(context, legendSensors, new String[] { "<35 \u00b0C", "35\u201342 \u00b0C", ">42 \u00b0C" }, false),
+        leg.addView(scale(context, legendSensors, new String[] { "<35 \u00b0C", "35\u201342 \u00b0C", ">42 \u00b0C" }),
                 margins(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1), s.px(24), 0, 0, 0));
         schem.addView(leg, margins(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT), 0, s.px(14), 0, 0));
@@ -312,7 +312,7 @@ final class StatusPage extends FrameLayout {
         return b;
     }
 
-    private View scale(Context c, TextView label, String[] bands, boolean marks) {
+    private View scale(Context c, TextView label, String[] bands) {
         LinearLayout row = new LinearLayout(c);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.addView(label, margins(wrap(), 0, 0, s.px(14), 0));
@@ -324,11 +324,6 @@ final class StatusPage extends FrameLayout {
             TextView t = s.text(c, 19, 400, s.muted2);
             t.setText(bands[i]);
             row.addView(t, margins(wrap(), 0, 0, s.px(16), 0));
-        }
-        if (marks) {
-            TextView t = s.text(c, 19, 400, s.muted2);
-            t.setText(R.string.status_legend_marks);
-            row.addView(t);
         }
         return row;
     }
