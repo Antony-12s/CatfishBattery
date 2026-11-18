@@ -98,6 +98,7 @@ public class SohRecorderTest {
         JSONObject json = new JSONObject(new SohRecorder(tempDir(), () -> 4, () -> Double.NaN).json());
         assertTrue(json.isNull("pct"));
         assertEquals(0, json.getInt("count"));
+        assertEquals("starting", json.getString("state"));
     }
 
     @Test
@@ -146,7 +147,7 @@ public class SohRecorderTest {
         byte[] payload = new byte[10 + record.length];
         payload[9] = (byte) record.length;
         System.arraycopy(record, 0, payload, 10, record.length);
-        try (ServerSocket server = new ServerSocket(0, 1, java.net.InetAddress.getLoopbackAddress())) {
+        try (ServerSocket server = new ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1"))) {
             ByteArrayOutputStream clientBytes = new ByteArrayOutputStream();
             Thread broker = fakeBroker(server, payload, clientBytes);
             assertEquals(96.5, SohRecorder.fetchEgyCdn(server.getLocalPort(), 3000), 0);
@@ -158,6 +159,11 @@ public class SohRecorderTest {
             expected.write(SohRecorder.DISCONNECT);
             assertArrayEquals("client may only CONNECT, SUBSCRIBE and DISCONNECT", expected.toByteArray(), sent);
         }
+    }
+
+    @Test
+    public void brokerHostIsIpv4LoopbackBecauseNanomqBindsOnly127001() {
+        assertArrayEquals(new byte[]{127, 0, 0, 1}, SohRecorder.BROKER_HOST.getAddress());
     }
 
     @Test

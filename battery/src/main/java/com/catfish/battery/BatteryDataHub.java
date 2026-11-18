@@ -12,7 +12,6 @@ final class BatteryDataHub {
     private static VehicleBatteryReader reader;
     private static BatteryLogger logger;
     private static SohRecorder soh;
-    private static final int GEAR_SELECTION = 0x11400400;
     private static int users;
 
     private BatteryDataHub() { }
@@ -25,10 +24,7 @@ final class BatteryDataHub {
         logger = new BatteryLogger(app, reader);
         logger.onAlert = soc -> announce(app, soc);
         logger.start();
-        // VHAL cache keeps the last value after a disconnect, so the gear counts only while the stream is up.
-        VehiclePropertyObserver vhal = new VehiclePropertyManager(app).getObserver();
-        soh = new SohRecorder(new java.io.File(app.getFilesDir(), "battery-history"),
-                () -> vhal.isConnected() ? VehiclePropertyManager.intCache().get(GEAR_SELECTION) : null,
+        soh = new SohRecorder(new java.io.File(app.getFilesDir(), "battery-history"), SohRecorder.carGear(app),
                 SohRecorder::fetchEgyCdn);
         soh.start();
     }

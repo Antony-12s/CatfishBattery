@@ -25,7 +25,7 @@ import java.util.function.Supplier;
 
 /**
  * Battery state of health, recorded once per park. The value is canspi HvBattEgyCdn, which matched the BECM's
- * dealer SOH (DID 496D: 96.44 % against 96.5 %) on 2026-11-18. It is read only while VHAL reports Park, from one
+ * dealer SOH (DID 496D: 96.44 % against 96.5 %) on 2026-11-18. It is read only while GEAR_SELECTION is Park, from one
  * subscribe-only snapshot of the head unit's local nanomq broker. History is kept in soh.csv.
  */
 final class SohRecorder {
@@ -33,6 +33,8 @@ final class SohRecorder {
     static final int GEAR_PARK = 4;
     private static final long DAY_MS = 24L * 3600L * 1000L;
     private static final int BROKER_PORT = 1883;
+    // nanomq listens on IPv4 127.0.0.1 only; Android's InetAddress.getLoopbackAddress() is ::1, which is refused.
+    static final InetAddress BROKER_HOST = ipv4Loopback();
 
     // MQTT 3.1.1 CONNECT (clean session, keepalive 60 s, client id "catfish-battery-soh"), SUBSCRIBE canspi QoS 0,
     // DISCONNECT. Never publish: rule, control and cloud-upload topics share this anonymous broker.
@@ -56,6 +58,8 @@ final class SohRecorder {
     private final Callable<Double> fetch;
     private final List<Entry> entries = new ArrayList<>();
     private boolean recordedThisPark;
+    private String lastOutcome = "";
+    private String state = "starting"; // for the page: why there is no new reading
     private ScheduledExecutorService executor;
 
     SohRecorder(File dir, Supplier<Integer> gear, Callable<Double> fetch) {
@@ -91,6 +95,8 @@ final class SohRecorder {
         Integer g = gear.get();
         if (g == null || g != GEAR_PARK) {
             recordedThisPark = false;
+            state = g == null ? "gear?" : "not in P";
+            note(g == null ? "gear unknown" : "not parked (gear " + g + ")");
             return;
         }
         if (recordedThisPark) return;
@@ -101,7 +107,13 @@ final class SohRecorder {
         } catch (Exception e) {
             pct = Double.NaN;
         }
-        if (!(pct > 0 && pct <= 100)) return; // unavailable or implausible: retry on the next tick of this park
+        if (!(pct > 0 && pct <= 100)) { // unavailable or implausible: retry on the next tick of this park
+            state = "no data";
+            note("parked, SOH unavailable (" + pct + ")");
+            return;
+        }
+        state = "ok";
+        note("parked, SOH " + pct + " %");
         recordedThisPark = true;
         Entry last = entries.isEmpty() ? null : entries.get(entries.size() - 1);
         if (!shouldRecord(last, now, pct)) return;
@@ -119,6 +131,13 @@ final class SohRecorder {
         }
     }
 
+    /** Logs only when the outcome changes, so a long park does not flood logcat. */
+    private void note(String outcome) {
+        if (outcome.equals(lastOutcome)) return;
+        lastOutcome = outcome;
+        Log.i(TAG, outcome);
+    }
+
     synchronized List<Entry> entries() {
         return Collections.unmodifiableList(new ArrayList<>(entries));
     }
@@ -129,7 +148,7 @@ final class SohRecorder {
         Entry prev = entries.size() < 2 ? null : entries.get(entries.size() - 2);
         return "{\"pct\":" + (last == null ? "null" : last.pct) + ",\"atMs\":" + (last == null ? "null" : last.ts)
                 + ",\"prevPct\":" + (prev == null ? "null" : prev.pct) + ",\"prevAtMs\":" + (prev == null ? "null" : prev.ts)
-                + ",\"count\":" + entries.size() + "}";
+                + ",\"count\":" + entries.size() + ",\"state\":\"" + state + "\"}";
     }
 
     private void load() {
@@ -150,7 +169,7 @@ final class SohRecorder {
     /** HvBattEgyCdn from one canspi snapshot on 127.0.0.1:{port}; NaN when the broker or the frame is unavailable. */
     static double fetchEgyCdn(int port, int timeoutMs) {
         try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), timeoutMs);
+            socket.connect(new InetSocketAddress(BROKER_HOST, port), timeoutMs);
             socket.setSoTimeout(timeoutMs);
             OutputStream out = socket.getOutputStream();
             out.write(CONNECT);
@@ -185,8 +204,40 @@ final class SohRecorder {
         }
     }
 
+    /**
+     * GEAR_SELECTION through android.car's CarPropertyManager (read only), or null when the car API or the value is
+     * unavailable. Reflection keeps android.car out of the build; the gRPC VHAL stream does not carry the gear.
+     */
+    @android.annotation.SuppressLint("PrivateApi") // android.car is the head unit's system car library (uses-library)
+    static Supplier<Integer> carGear(android.content.Context context) {
+        Object[] manager = {null};
+        return () -> {
+            try {
+                if (manager[0] == null) {
+                    Class<?> carClass = Class.forName("android.car.Car");
+                    Object car = carClass.getMethod("createCar", android.content.Context.class).invoke(null, context);
+                    if (car == null) return null;
+                    manager[0] = carClass.getMethod("getCarManager", String.class).invoke(car, "property");
+                }
+                return (Integer) manager[0].getClass().getMethod("getIntProperty", int.class, int.class)
+                        .invoke(manager[0], 0x11400400, 0);
+            } catch (ReflectiveOperationException | RuntimeException e) {
+                manager[0] = null; // car service restarted or not ready: rebuild on the next tick
+                return null;
+            }
+        };
+    }
+
     static double fetchEgyCdn() {
         return fetchEgyCdn(BROKER_PORT, 3000);
+    }
+
+    private static InetAddress ipv4Loopback() {
+        try {
+            return InetAddress.getByAddress(new byte[]{127, 0, 0, 1});
+        } catch (java.net.UnknownHostException impossible) {
+            throw new AssertionError(impossible);
+        }
     }
 
     private static byte[] bytes(int... values) {
