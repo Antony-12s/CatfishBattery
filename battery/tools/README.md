@@ -64,3 +64,20 @@ reboot. Run `status` after the car wakes. Captures are private vehicle data:
 `out/` stays out of git. Offline check: the loop and CSV export were run
 against a strict local fake broker that replays real snapshots. They have not
 yet run on the car (`toybox nc` behaviour is untested).
+
+## BECM SOH read (DID 0x496D, read-only)
+
+Reads the dealer-tool SOH (`High Voltage Battery Health (SOH) - BECM`) through
+Dxapp's installed `VehicleDiagIF` middleware, from the adb shell user. It
+acquires diagnostic mode 5, sends only UDS `22 49 6D` to BECM `0x1635`, and
+releases the channel. A VHAL guard requires `GEAR_SELECTION` and
+`CURRENT_GEAR` = Park (4) before acquisition and every 125 ms during the read.
+
+```sh
+battery/tools/becm-soh/build.sh
+battery/tools/becm-soh/run.sh --guard-only   # checks the Park guard, no middleware calls
+battery/tools/becm-soh/run.sh                # reads 496D
+```
+
+This takes the car's diagnostic channel for a few seconds: run it parked, and
+not while a workshop tool or OTA is active.

@@ -132,6 +132,19 @@ Reading it from the head unit is not possible today: over the Wi-Fi DoIP path
 only the DHU answers, and the BECM needs the OBD port (ELM327 on 29-bit CAN,
 or a DoIP Ethernet adapter, which is what GLDS uses).
 
+### Read on this car (2026-11-18)
+
+Through Dxapp's `VehicleDiagIF` middleware from the unrooted adb shell user
+(`battery/tools/becm-soh`), parked, BECM answered `62 49 6D 00 00 25 AC`.
+Data `0x000025AC` = 9644. Read as raw / 100 it is **96.44 %**, the only common
+scale that gives a 0-100 % value. At the same moment canspi
+`HvBattEgyCdn` read 96.5 % (0.5 % steps), `HvBattSOCE` 91.5 % and SOC 87.3 %.
+So `HvBattEgyCdn` is the BMS SOH at 0.5 % resolution: the head unit can show
+SOH from canspi without OBD or a diagnostic session. `HvBattSOCE` moved
+(92 to 91.5 %) and does not match, so it is not SOH.
+The /100 scale is inferred, not documented. One more 496D read after
+`HvBattEgyCdn` changes would confirm it.
+
 ## Open risks before any app use
 
 - The adb `shell` UID (2000, not root) connects to 127.0.0.1:1883 and
