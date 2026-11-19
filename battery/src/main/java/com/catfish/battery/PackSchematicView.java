@@ -52,6 +52,8 @@ final class PackSchematicView extends View {
     private final Point floor = iso(185,175,0);
     // swipe card above Loads: Range, Pack power, Extremes
     private static final String[] PAGES = {"Range","Pack power","Extremes"};
+    // Pack power bar ends (owner, 2026-11-19): regen peaks around 130-140 kW, drive around 180 kW
+    private static final int REGEN_KW = 140, DRIVE_KW = 180;
     private final SwipePager pager = new SwipePager(PAGES.length,SWIPE_R-SWIPE_L,ValueAnimator.areAnimatorsEnabled());
     private boolean swiping;
     private final Path busPositive = line(iso(54,87,45),iso(360,87,45));
@@ -371,20 +373,20 @@ final class PackSchematicView extends View {
         boolean in = data.packKw <= -.05;
         label(c,data.packKwText,l+16,b-14,30,in ? palette.good : ink(),big,Paint.Align.LEFT);
         label(c,"kW",l+22+measure(data.packKwText,30,big),b-15,15,muted(),NORMAL,Paint.Align.LEFT);
-        // one bar: 50 kW back into the pack on the left third, 100 kW out on the right
-        float bl = l + 150, br = r - 16, zero = bl + (br - bl) / 3, y = b - 26;
+        // one bar on one kW scale: up to REGEN_KW back into the pack on the left, DRIVE_KW out on the right
+        float bl = l + 150, br = r - 16, zero = bl + (br - bl) * REGEN_KW / (REGEN_KW + DRIVE_KW), y = b - 26;
         round(c,bl,y-3,br,y+3,3,track(),0);
         if (Double.isFinite(data.packKw) && Math.abs(data.packKw) >= .05) {
-            float x = data.packKw > 0 ? zero + (br - zero) * (float) Math.min(1,data.packKw / 100)
-                    : zero - (zero - bl) * (float) Math.min(1,-data.packKw / 50);
+            float x = data.packKw > 0 ? zero + (br - zero) * (float) Math.min(1,data.packKw / DRIVE_KW)
+                    : zero - (zero - bl) * (float) Math.min(1,-data.packKw / REGEN_KW);
             round(c,Math.min(x,zero),y-3,Math.max(x,zero),y+3,3,data.packKw > 0 ? champagne : palette.good,0);
         }
         round(c,zero-.75f,y-8,zero+.75f,y+8,0,muted(),0);
         label(c,data.charging ? "Into pack" : "Regen",bl,y-10,11.5f,muted(),NORMAL,Paint.Align.LEFT);
         label(c,"Drive",br,y-10,11.5f,muted(),NORMAL,Paint.Align.RIGHT);
-        label(c,"50",bl,y+18,11,muted(),NORMAL,Paint.Align.LEFT);
+        label(c,String.valueOf(REGEN_KW),bl,y+18,11,muted(),NORMAL,Paint.Align.LEFT);
         label(c,"0",zero,y+18,11,muted(),NORMAL,Paint.Align.CENTER);
-        label(c,"100",br,y+18,11,muted(),NORMAL,Paint.Align.RIGHT);
+        label(c,String.valueOf(DRIVE_KW),br,y+18,11,muted(),NORMAL,Paint.Align.RIGHT);
     }
 
     private void drawExtremesPage(Canvas c) {
