@@ -117,3 +117,12 @@ Do not resolve signer mismatches by uninstalling or clearing data.
   only when real regen was recorded, header counters read "n/118 cells" and "n/12 sensors".
 - Swipe card values: RANGE_REMAINING (rangeKm), HvBattEgyAvlDcha1 (energyWh), V × I pack power, highest cell with its
   number, hottest/coolest sensor. Missing readings show "--". No trip Wh/km yet: the app does not compute it.
+
+## Range, highest cell and Health trend source (2026-11-19)
+- Range: RANGE_REMAINING through CarPropertyManager (reflection, read only) every 20 s; adds the runtime permission
+  android.car.permission.CAR_ENERGY, asked once from BatteryActivity. The gRPC stream never pushes it.
+- Highest cell: the BMS's own HvBattVoltMaxSerlNr + CellUMax (APVP), not the first of several equal samples.
+  CellUMax/CellUMin also fill cellMaxV/cellMinV, which the VHAL cache never carried on this car.
+- Health: the trend, the day counter and the rates use BECM readings only when there are any (canspi stays in the
+  table). Mixing 0.5 % canspi steps with 0.01 % BECM reads produced a fake -16 %/year. The counter now counts
+  calendar days with a reading instead of elapsed whole days.

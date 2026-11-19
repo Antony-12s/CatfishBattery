@@ -88,6 +88,9 @@ public class BatteryStreamTest {
     @Test
     public void parsesRangeProbeIncludingUnavailableStatus() {
         double[] ok = VehicleBatteryReader.parseRangeProbe("Property 11600308 status: 2 floatValues: [451.0]");
+        // the CarPropertyManager probe formats its reading the same way
+        assertEquals(334.0, VehicleBatteryReader.parseRangeProbe(SohRecorder.rangeText(2, 334f))[1], 0);
+        assertTrue(Double.isNaN(VehicleBatteryReader.parseRangeProbe(SohRecorder.rangeText(3, 334f))[1]));
         assertEquals(2, (int) ok[0]);
         assertEquals(451.0, ok[1], 1e-6);
         assertTrue(Double.isNaN(VehicleBatteryReader.parseRangeProbe("garbage")[1]));

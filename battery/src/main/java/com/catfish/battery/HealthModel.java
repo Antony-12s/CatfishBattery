@@ -10,7 +10,7 @@ import java.util.TimeZone;
 /**
  * The Health page from soh.csv: SOH against time, distance and cell spread. Rates come from a least-squares trend over
  * every reading (the BMS moves SOH in steps, so first-minus-last would swing). A rate is only shown once readings
- * span 30 days and the SOH has changed at least once; before that the page says it is collecting, and offers a
+ * cover 30 calendar days and the SOH has changed at least once (BECM readings only when there are any); before that the page says it is collecting, and offers a
  * "since new" estimate that assumes 100 % at 0 km (clearly labelled as such).
  */
 final class HealthModel {
@@ -36,10 +36,15 @@ final class HealthModel {
     final Fit byTime, byKm, byDiff;
     final double[] days, kms, diffs, pctsAll, pctsKm, pctsDiff;
     final long firstTs;
-    final int collectDays; // whole days of readings so far, capped at MIN_DAYS
+    final int collectDays; // calendar days with a reading so far, capped at MIN_DAYS
     final List<String[]> table = new ArrayList<>(); // date, SOH, source, km, V diff; newest first
 
-    private HealthModel(List<SohRecorder.Entry> rows, long now, TimeZone zone) {
+    private HealthModel(List<SohRecorder.Entry> table, long now, TimeZone zone) {
+        // the trend, day count and rates use one source: BECM (0.01 %) when there is any, else canspi (0.5 % steps).
+        // Mixing them turns the step between sources into a fake rate (96.5 canspi vs 96.44 BECM read -16 %/year).
+        List<SohRecorder.Entry> rows = new ArrayList<>();
+        for (SohRecorder.Entry e : table) if (SohRecorder.BECM.equals(e.source)) rows.add(e);
+        if (rows.isEmpty()) rows = table;
         int n = rows.size();
         SohRecorder.Entry last = n == 0 ? null : rows.get(n - 1);
         latest = last == null ? Double.NaN : last.pct;
@@ -73,8 +78,9 @@ final class HealthModel {
         byKm = fit(kms, pctsKm);
         byDiff = fit(diffs, pctsDiff);
 
-        double span = n == 0 ? 0 : (now - firstTs) / DAY;
-        enough = n >= 3 && span >= MIN_DAYS && changed;
+        java.util.Set<String> readingDays = new java.util.HashSet<>(); // calendar days with a reading
+        for (SohRecorder.Entry e : rows) readingDays.add(date(e.ts, zone, "yyyy-MM-dd"));
+        enough = n >= 3 && readingDays.size() >= MIN_DAYS && changed;
         perYear = enough ? byTime.slope * YEAR_DAYS : Double.NaN;
         per10kKm = enough ? byKm.slope * 10_000 : Double.NaN;
         per10kText = Double.isFinite(per10kKm) ? "about " + signed(per10kKm) + " % per 10,000 km" : "";
@@ -88,15 +94,15 @@ final class HealthModel {
             km90 = Double.NaN;
             projection = "";
         }
-        collectDays = Math.min(MIN_DAYS, (int) Math.floor(span));
+        collectDays = Math.min(MIN_DAYS, readingDays.size());
         collecting = collectDays + " of " + MIN_DAYS + " days · " + n
                 + (n == 1 ? " reading" : " readings");
         sinceNew = last != null && Double.isFinite(latestKm) && latestKm > 1000 && latest < 100
                 ? "about " + signed((latest - 100) / latestKm * 10_000) + " % per 10,000 km since new" : "";
 
-        for (int i = n - 1; i >= 0; i--) {
-            SohRecorder.Entry e = rows.get(i);
-            table.add(new String[]{date(e.ts, zone, "d MMM HH:mm"), SchematicReadings.soh(e.pct, e.source),
+        for (int i = table.size() - 1; i >= 0; i--) {
+            SohRecorder.Entry e = table.get(i);
+            this.table.add(new String[]{date(e.ts, zone, "d MMM HH:mm"), SchematicReadings.soh(e.pct, e.source),
                     SohRecorder.BECM.equals(e.source) ? "BECM" : "canspi", km(e.km),
                     UiFormat.fixed(e.cellDiffMv, 0, " mV")});
         }

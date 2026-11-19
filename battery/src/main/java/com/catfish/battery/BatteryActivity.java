@@ -43,10 +43,16 @@ public final class BatteryActivity extends Activity {
     private ScheduledFuture<?> tick;
     private int ticks;
 
+    private static final String CAR_ENERGY = "android.car.permission.CAR_ENERGY";
+
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         BatteryService.start(this);
         BatteryDataHub.acquire(this);
+        // range (RANGE_REMAINING) needs the car's energy permission; ask once, the range probe picks it up when granted
+        if (checkSelfPermission(CAR_ENERGY) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] { CAR_ENERGY }, 1);
+        }
         setContentView(R.layout.activity_battery);
         if (state != null) page = state.getString("page", page);
         tabs = new Button[] { findViewById(R.id.battery_tab_status), findViewById(R.id.battery_tab_charging),

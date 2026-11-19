@@ -22,7 +22,8 @@ final class BatteryDataHub {
         Context app = context.getApplicationContext();
         appContext = app;
         reader = new VehicleBatteryReader(app);
-        // shortcut: no root here, so no car_service RANGE_REMAINING probe; range shows only if the VHAL stream pushes it.
+        // the gRPC stream never pushes RANGE_REMAINING: read it through CarPropertyManager every 20 s
+        reader.setRangeProbe(SohRecorder.carRange(app));
         logger = new BatteryLogger(app, reader);
         logger.onAlert = soc -> announce(app, soc);
         logger.start();

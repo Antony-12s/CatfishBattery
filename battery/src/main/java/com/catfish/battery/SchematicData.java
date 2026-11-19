@@ -117,8 +117,9 @@ final class SchematicData {
         packKwText = Double.isNaN(packKw) ? UiFormat.MISSING
                 : (packKw >= .05 ? "+" : packKw <= -.05 ? "\u2212" : "") + String.format(java.util.Locale.US,"%.1f",Math.abs(packKw));
         powerState = Double.isNaN(watts) ? "" : charging ? "Charging" : into && !plugged ? "Regen" : out ? "In use" : "Idle";
-        highCell = extreme(cells,true) + 1;
-        highCellV = highCell == 0 ? UiFormat.MISSING : UiFormat.fixed(cells[highCell-1] / 1000,3," V");
+        double maxNo = number(flow,"cellMaxNo",1,118);
+        highCell = Double.isNaN(maxNo) ? 0 : (int) maxNo; // the BMS's highest cell (HvBattVoltMaxSerlNr)
+        highCellV = UiFormat.fixed(number(current,"cellMaxV",2,5),3," V");
         hotSensor = extreme(temperatures,true) + 1;
         coolSensor = extreme(temperatures,false) + 1;
         chargeNote = SchematicReadings.chargeNote(number(flow,"chargeKwh",0,200),

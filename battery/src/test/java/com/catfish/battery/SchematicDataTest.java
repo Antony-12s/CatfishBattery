@@ -16,7 +16,8 @@ public class SchematicDataTest {
         int[] t = {33, 33, 32, 34, 30, 28, 34, 33, 33, 32, 36, 31};
         for (int s = 1; s <= 12; s++) temps.put(new JSONObject().put("sensor", s).put("tempC", t[s - 1]));
         return new JSONObject().put("streamConnected", true).put("soc", 74.5).put("rangeKm", 368).put("energyWh", 40820)
-                .put("battVoltageV", 380.5).put("battCurrentA", 96.7).put("cells", cells).put("cellTemps", temps);
+                .put("battVoltageV", 380.5).put("battCurrentA", 96.7).put("cells", cells).put("cellTemps", temps)
+                .put("cellMaxV", 3.314).put("flow", new JSONObject().put("cellMaxNo", 48));
     }
 
     @Test public void rangePageUsesTheCarsRangeAndEnergy() throws Exception {
@@ -40,9 +41,13 @@ public class SchematicDataTest {
     }
 
     @Test public void extremesPageNamesTheCellAndTheSensors() throws Exception {
+        // the highest cell is the BMS's own (HvBattVoltMaxSerlNr + CellUMax), not the first of several equal samples
         SchematicData d = new SchematicData(live());
-        assertEquals(47, d.highCell);
-        assertEquals("3.312 V", d.highCellV);
+        assertEquals(48, d.highCell);
+        assertEquals("3.314 V", d.highCellV);
+        SchematicData noBms = new SchematicData(live().put("flow", new JSONObject()).put("cellMaxV", JSONObject.NULL));
+        assertEquals(0, noBms.highCell);
+        assertEquals("--", noBms.highCellV);
         assertEquals(11, d.hotSensor);   // BMS board 36 °C
         assertEquals(6, d.coolSensor);   // coolant in 28 °C
     }

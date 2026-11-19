@@ -48,7 +48,7 @@ public class HealthModelTest {
         rows.add(e(T0 + 3 * DAY, 96.44, 29400, 3));
         HealthModel m = HealthModel.from(rows, T0 + 3 * DAY, BANGKOK);
         assertFalse(m.enough);
-        assertEquals("3 of 30 days · 2 readings", m.collecting);
+        assertEquals("2 of 30 days · 2 readings", m.collecting); // calendar days with a reading, not elapsed days
         // since new, assuming 100 % at 0 km: (96.44 - 100) / 29,400 km * 10,000
         assertEquals("about \u22121.2 % per 10,000 km since new", m.sinceNew);
         assertEquals("", m.projection);
@@ -56,6 +56,35 @@ public class HealthModelTest {
         List<SohRecorder.Entry> flat = new ArrayList<>();
         for (int d = 0; d <= 60; d++) flat.add(e(T0 + d * DAY, 96.44, 29161 + d * 70, 3));
         assertFalse(HealthModel.from(flat, T0 + 60 * DAY, BANGKOK).enough); // SOH never changed: no rate yet
+    }
+
+    @Test public void trendAndDaysUseOnlyTheBecm() {
+        // the car's history: canspi 96.5 (0.5 % steps), then two BECM 96.44 readings on 18 and 19 Nov
+        List<SohRecorder.Entry> rows = new ArrayList<>();
+        rows.add(new SohRecorder.Entry(T0, 96.5, SohRecorder.CANSPI, Double.NaN, Double.NaN));
+        rows.add(e(T0 + 5 * 3_600_000L, 96.44, 29161, Double.NaN));
+        rows.add(e(T0 + DAY, 96.44, 29190, 3));
+        HealthModel m = HealthModel.from(rows, T0 + DAY + 1000, BANGKOK);
+        assertEquals("2 of 30 days · 2 readings", m.collecting);
+        assertEquals(2, m.days.length);           // the canspi point is not on the trend charts
+        assertEquals(96.44, m.pctsAll[0], 0);
+        assertEquals(0, m.byTime.slope, 1e-12);   // flat: no -16 %/year from mixing sources
+        assertEquals(3, m.table.size());          // but it stays in the table
+        assertEquals("canspi", m.table.get(2)[2]);
+
+        // 40 days of BECM readings that never move, plus one stray canspi: SOH has not changed, no rate
+        List<SohRecorder.Entry> mixed = new ArrayList<>();
+        mixed.add(new SohRecorder.Entry(T0, 97.0, SohRecorder.CANSPI, Double.NaN, Double.NaN));
+        for (int d = 1; d <= 40; d++) mixed.add(e(T0 + d * DAY, 96.44, 29161 + d * 70, 3));
+        assertFalse(HealthModel.from(mixed, T0 + 40 * DAY, BANGKOK).enough);
+    }
+
+    @Test public void canspiOnlyHistoryStillCounts() {
+        // before the BECM read existed (or where it is unavailable) canspi is the only source
+        List<SohRecorder.Entry> rows = new ArrayList<>();
+        rows.add(new SohRecorder.Entry(T0, 96.5, SohRecorder.CANSPI, Double.NaN, Double.NaN));
+        HealthModel m = HealthModel.from(rows, T0, BANGKOK);
+        assertEquals("1 of 30 days · 1 reading", m.collecting);
     }
 
     @Test public void verdictBands() {

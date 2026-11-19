@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Read-only GEAR_SELECTION for the once-per-park SOH record (normal protection on the EX5). -->
     <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+    <!-- RANGE_REMAINING through CarPropertyManager (read only) -->
+    <uses-permission android:name="android.car.permission.CAR_ENERGY" />
 
     <application
         android:allowBackup="false"

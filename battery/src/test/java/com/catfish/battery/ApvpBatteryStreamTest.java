@@ -27,6 +27,17 @@ public class ApvpBatteryStreamTest {
         assertEquals(84.0, got.get(0)[1], 0);
     }
 
+    @Test public void subscribesToTheBmsCellExtremes() {
+        String request = new String(ApvpBatteryStream.subscription(), StandardCharsets.ISO_8859_1);
+        assertTrue(request.contains("CellUMax"));
+        assertTrue(request.contains("CellUMin"));
+        assertTrue(request.contains("HvBattVoltMaxSerlNr"));
+        List<double[]> got = new ArrayList<>();
+        ApvpBatteryStream.decodeSignal(signal(308282815, "CellUMax", 3.324f), listener(got)); // shifted reply id
+        assertEquals(ApvpBatteryStream.CELL_U_MAX, (int) got.get(0)[0]);
+        assertEquals(3.324, got.get(0)[1], 1e-6);
+    }
+
     private static byte[] signal(int id, String name, float value) {
         ByteArrayOutputStream ident = new ByteArrayOutputStream();
         varint(ident, 8); varint(ident, id); field(ident, 2, name.getBytes(StandardCharsets.UTF_8));

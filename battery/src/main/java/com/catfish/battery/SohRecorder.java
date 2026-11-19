@@ -360,6 +360,39 @@ final class SohRecorder {
         };
     }
 
+    /**
+     * RANGE_REMAINING (0x11600308) through CarPropertyManager, read only, formatted like car_service output for
+     * VehicleBatteryReader.parseRangeProbe. Needs android.car.permission.CAR_ENERGY (dangerous: granted at runtime).
+     * This head unit flags the property UNAVAILABLE (status 2) while its value tracks the dashboard.
+     */
+    @android.annotation.SuppressLint("PrivateApi")
+    static java.util.concurrent.Callable<String> carRange(android.content.Context context) {
+        Object[] manager = {null};
+        return () -> {
+            try {
+                if (manager[0] == null) {
+                    Class<?> carClass = Class.forName("android.car.Car");
+                    Object car = carClass.getMethod("createCar", android.content.Context.class).invoke(null, context);
+                    if (car == null) return "";
+                    manager[0] = carClass.getMethod("getCarManager", String.class).invoke(car, "property");
+                }
+                Object value = manager[0].getClass().getMethod("getProperty", Class.class, int.class, int.class)
+                        .invoke(manager[0], Float.class, 0x11600308, 0);
+                if (value == null) return "";
+                int status = (Integer) value.getClass().getMethod("getStatus").invoke(value);
+                Object km = value.getClass().getMethod("getValue").invoke(value);
+                return km instanceof Float f ? rangeText(status, f) : "";
+            } catch (ReflectiveOperationException | RuntimeException e) {
+                manager[0] = null; // no permission yet or car service restarting: retry on the next tick
+                return "";
+            }
+        };
+    }
+
+    static String rangeText(int status, float km) {
+        return "status: " + status + " floatValues: [" + km + "]";
+    }
+
     static double fetchEgyCdn() {
         return fetchEgyCdn(BROKER_PORT, 3000);
     }

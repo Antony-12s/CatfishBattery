@@ -61,9 +61,10 @@ public final class VehicleBatteryReader {
     // Energy-flow tab (read-only, same subscription): HV relay, on-board charger, plug handles, charge lid, session
     // energy / ETA / target SOC, V2L output, warnings. Exposed raw under "flow" in the JSON; enums decoded in the page.
     static final int[] FLOW_IDS = {306185657, 306185799, 308282952, 308282950, 306185797, 306185645, 306184632, 306184633,
-            308282806, 306185647, 308282987, 291504192, 308282946, 308282944, 306185807, 306185808, 306185842};
+            308282806, 306185647, 308282987, 291504192, 308282946, 308282944, 306185807, 306185808, 306185842, 306185663};
     static final String[] FLOW_KEYS = {"relay", "obcState", "obcV", "obcA", "obcHandle", "dcHandle", "lidAc", "lidDc",
-            "chargeKwh", "chargeEtaMin", "driveEtaMin", "targetSoc", "v2lV", "v2lA", "dischargeWarn", "dischargeFault", "fullChargeCaution"};
+            "chargeKwh", "chargeEtaMin", "driveEtaMin", "targetSoc", "v2lV", "v2lA", "dischargeWarn", "dischargeFault", "fullChargeCaution",
+            "cellMaxNo"}; // HvBattVoltMaxSerlNr: number (1-118) of the BMS's highest cell
     /** Per-card freshness for the flow page: key -> property whose arrival time is reported as ageMs. */
     private static final String[] AGE_KEYS = {"pack", "motor", "cabin", "therm", "dcdc", "lv", "chg", "dc", "v2l", "relay"};
     private static final int[] AGE_IDS = {308282801, ISG_CURRENT_A, CABIN_THERM_W, BATT_THERM_W, DCDC_W, LV_BATTERY_V, 308282950, DC_CHARGE_KW, 308282944, 306185657};
@@ -204,6 +205,8 @@ public final class VehicleBatteryReader {
                     reading(floats, integers, SOC_APVP, 0d, 100d) != null ? "HvBattSoc" : "";
             Double cellMax = reading(floats, integers, CELL_MAX_V, 2d, 5d);
             Double cellMin = reading(floats, integers, CELL_MIN_V, 2d, 5d);
+            if (cellMax == null && apvpConnected) cellMax = value(observedScalars, ApvpBatteryStream.CELL_U_MAX, 2d, 5d);
+            if (cellMin == null && apvpConnected) cellMin = value(observedScalars, ApvpBatteryStream.CELL_U_MIN, 2d, 5d);
             if (cellMax != null && cellMin != null && (cellMax < cellMin || cellMax - cellMin > 1d)) {
                 cellMax = null;
                 cellMin = null;
@@ -275,7 +278,8 @@ public final class VehicleBatteryReader {
                 propertyId == DC_CHARGE_STATE || propertyId == DC_CHARGE_KW ||
                 propertyId == CABIN_THERM_W || propertyId == BATT_THERM_W || propertyId == DCDC_W ||
                 propertyId == ISG_CURRENT_A || propertyId == ISG_VOLTAGE_V || propertyId == TOT_DRIVE_PWR ||
-                propertyId == BATT_CAP_ESTIMD || propertyId == HV_BATT_CAP || isFlowId(propertyId);
+                propertyId == BATT_CAP_ESTIMD || propertyId == HV_BATT_CAP || isFlowId(propertyId) ||
+                propertyId == ApvpBatteryStream.CELL_U_MAX || propertyId == ApvpBatteryStream.CELL_U_MIN;
     }
 
     private static boolean isFlowId(int propertyId) {

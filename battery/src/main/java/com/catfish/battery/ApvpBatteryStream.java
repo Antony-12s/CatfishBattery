@@ -33,15 +33,19 @@ final class ApvpBatteryStream implements AutoCloseable {
     private static final String METHOD = "transfer_proto.TransferServer/listenerSignalStream";
     private static final int MAX_MESSAGE = 65536;
     static final int CELL_UI_ARRAY = 309332894, CELL_TEMP_ARRAY = 309332892;
+    // the BMS's own highest / lowest cell voltage (V); the VHAL cache never carried them on this car
+    static final int CELL_U_MAX = 308282814, CELL_U_MIN = 308282816;
     private static final int[] IDS = {308282803,308282801,CELL_UI_ARRAY,CELL_TEMP_ARRAY,308282837,308282838,308282836,308282129,308282181,306185790,308282947,308282958,306185644,308282795,
             306184675,306184674,306184676,308281832,308282990,306184741,306185030,308282798,
             306185657,306185799,308282952,308282950,306185797,306185645,306184632,306184633,308282806,306185647,308282987,291504192,308282946,308282944,306185807,306185808,306185842,
-            308282810};
+            308282810,306185663,CELL_U_MAX,CELL_U_MIN};
     private static final String[] NAMES = {"HvBattUDc","HvBattIDc1","PA_HvBattCellUIInfo_Res","PA_HvBattCellTinfo_Res","HvBattTMax","HvBattTMin","HvBattTAvg","VehBattUSysU","BattSocRaw","DcDcActvd","IDcDcActHiSide","IDcDcActLoSideIDcDcActLoSide","DCChrgSt","DCChaPwrAct",
             "HvCabinThermPwrCns","HvBattThermPwrCns","HvConvPwrAct","IsgIDc","IsgUDc","TotDrvPwrAct","BattCpEstimdRaw","HvBattCap",
             "HvSysRlyStsHvSysRlySts","OnBdChrgrSt","OnBdChrgrUAct","OnBdChrgrIAct","OnBdChrgrHndlSts1","DCChrgnHndlSts","ChrgLidAcSts","ChrgLidDCorAcDcSts","TotSingleChrgEgy","HvBattChrgnTiEstimd","RemnTiOfDrvChrg","PrpsnHvBattUsgOfChrgTarSOC","DchaUAct","DchaIAct","DischrgPwrExceedWarn","DischrgPwrExceedFlt","HvBattFullChrgCaution",
             // pack SOC: VHAL only pushes its SOC on change, so after a restart while parked it stayed "--"; APVP sends it on subscribe
-            "HvBattSoc"};
+            "HvBattSoc",
+            // number of the highest cell, so the schematic names the BMS's own max instead of guessing among equal samples
+            "HvBattVoltMaxSerlNr","CellUMax","CellUMin"};
     interface Listener {
         void scalar(int id, double value);
         void cells(int[] payload);
