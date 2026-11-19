@@ -476,6 +476,7 @@ final class SettingsPage extends FrameLayout {
         fact(info, "Commit", BuildConfig.GIT_COMMIT, true);
         fact(info, "Signer", signer(), true);
         fact(info, "Source", "github.com/Antony-12s/CatfishBattery", true);
+        fact(info, "License", "Apache-2.0 · © 2026 Antony-12s", false);
         row.addView(info, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         if (!KOFI_URL.isEmpty()) {
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ui.dp(400), ViewGroup.LayoutParams.WRAP_CONTENT);
