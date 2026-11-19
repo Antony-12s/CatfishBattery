@@ -132,3 +132,10 @@ Do not resolve signer mismatches by uninstalling or clearing data.
 - VehiclePropertyObserver.java, VehiclePropertyManager.java and vhal.proto derive from Geely Custom Profiles, which
   has no license; they are listed in NOTICE as not covered. Rewriting them from scratch would let the whole repository
   carry the license.
+## In-app install (2026-11-19)
+- Settings > Update gets an Install button (owner request). It downloads the release APK from this repository's
+  release downloads only, checks it against the release's .sha256 and against this app's own signer, package name and
+  a newer versionCode, then installs it as the shell user over the head unit's loopback adbd (AdbShell, copied from
+  HUD Cluster). Firmware 1.3's package verifier rejects shell installs, so the install script turns
+  verifier_verify_adb_installs off for its own install and an EXIT trap restores it (HUD Cluster's VERIFIER_OFF).
+  `pm install -r` keeps settings and history; the script runs detached and reopens the app.
