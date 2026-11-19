@@ -22,7 +22,7 @@ import java.util.function.Consumer;
 
 /**
  * Settings > Update > Install: downloads the release APK, checks it against the release's .sha256 and this app's own
- * signer, then has the head unit's shell install it in place over the loopback adbd (AdbShell), the way HUD Cluster
+ * signer, then has the head unit's shell install it in place over the loopback adbd (LoopbackAdb), the way HUD Cluster
  * updates itself. Firmware 1.3 rejects shell installs through its package verifier, so the script turns
  * verifier_verify_adb_installs off for its own install and an EXIT trap restores it. `pm install -r` keeps app data.
  */
@@ -61,7 +61,7 @@ final class UpdateInstaller {
     static void install(Context context, UpdateCheck.Release release, Consumer<String> progress) throws IOException {
         if (release == null || release.apkUrl == null || release.sha256Url == null) throw new IOException("This release has no APK");
         progress.accept("Checking wireless ADB…");
-        if (!AdbShell.available()) throw new IOException("Wireless ADB is off on this head unit");
+        if (!LoopbackAdb.available()) throw new IOException("Wireless ADB is off on this head unit");
         String expected = expectedSha256(new String(download(release.sha256Url, SHA_MAX, null), StandardCharsets.UTF_8));
         if (expected == null) throw new IOException("The release checksum is unreadable");
         File apk = new File(context.getCacheDir(), "update.apk");
@@ -72,7 +72,7 @@ final class UpdateInstaller {
             progress.accept("Checking the signature…");
             checkSigner(context, apk);
             progress.accept("Installing " + release.version + "… the app restarts by itself");
-            try (AdbShell.Client adb = AdbShell.Client.connect()) {
+            try (LoopbackAdb adb = LoopbackAdb.connect()) {
                 adb.readTimeout(60_000); // adbd answers a big upload's DONE only once it is written
                 adb.push(apk, STAGED, 0644);
                 String reply = adb.shell(installScript(STAGED, userOf(android.os.Process.myUid())));

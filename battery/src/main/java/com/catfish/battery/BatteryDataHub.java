@@ -31,7 +31,7 @@ final class BatteryDataHub {
                 SohRecorder::fetchEgyCdn);
         // PERF_ODOMETER from the read-only VHAL stream cache (the stream sends every property once on connect)
         soh.setOdometer(() -> {
-            Float km = VehiclePropertyManager.floatCache().get(0x11600204);
+            Float km = VhalStream.floats().get(0x11600204);
             return km == null ? Double.NaN : km.doubleValue();
         });
         VehicleBatteryReader cellsFrom = reader;

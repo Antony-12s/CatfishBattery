@@ -80,15 +80,15 @@ public final class VehicleBatteryReader {
     private final LinkedHashMap<Integer, Integer> cellTemps = new LinkedHashMap<>();
     private final Set<Integer> loggedScalarProperties = new HashSet<>();
     /** Shared VHAL stream (port 40004) that the rest of the app already listens to; attached read-only. */
-    private VehiclePropertyObserver observer;
-    private final VehiclePropertyObserver.VehiclePropertyListener listener = new VehiclePropertyObserver.VehiclePropertyListener() {
-        @Override public void onPropertyUpdated(int propId, int areaId, int intValue, float floatValue, boolean isFloat) {
+    private VhalStream observer;
+    private final VhalStream.Listener listener = new VhalStream.Listener() {
+        @Override public void onValue(int propId, int areaId, int intValue, float floatValue, boolean isFloat) {
             acceptScalar(isFloat, propId, intValue, floatValue);
         }
-        @Override public void onPropertyAvailabilityChanged(int propId, int areaId, boolean available) {
+        @Override public void onAvailability(int propId, int areaId, boolean available) {
             if (!available) synchronized (VehicleBatteryReader.this) { observedScalars.remove(propId); }
         }
-        @Override public void onConnectionStateChanged(boolean connected) {
+        @Override public void onConnected(boolean connected) {
             if (!connected) synchronized (VehicleBatteryReader.this) { observedScalars.keySet().removeIf(id -> !isApvpScalar(id)); }
         }
     };
@@ -197,8 +197,8 @@ public final class VehicleBatteryReader {
             ensureClient();
             boolean vhalConnected = observer.isConnected();
             if (!vhalConnected && !apvpConnected) return unavailableSnapshot();
-            Map<Integer, Float> floats = VehiclePropertyManager.floatCache();
-            Map<Integer, Integer> integers = VehiclePropertyManager.intCache();
+            Map<Integer, Float> floats = VhalStream.floats();
+            Map<Integer, Integer> integers = VhalStream.ints();
             Double soc = firstReading(floats, integers, 0d, 100d, SOC_PERCENT, SOC_DISPLAY, SOC_APVP);
             String source = reading(floats, integers, SOC_PERCENT, 0d, 100d) != null ? "TYPE_EV_BATTERY_PERCENTAGE" :
                     reading(floats, integers, SOC_DISPLAY, 0d, 100d) != null ? "DispHvBattLvlOfChrg" :
@@ -246,7 +246,7 @@ public final class VehicleBatteryReader {
 
     private synchronized void ensureClient() {
         if (observer != null) return;
-        observer = new VehiclePropertyManager(context).getObserver();
+        observer = VhalStream.shared();
         observer.addListener(listener);
         Log.i(TAG, "Read-only battery observer attached");
     }

@@ -136,7 +136,15 @@ Do not resolve signer mismatches by uninstalling or clearing data.
 ## In-app install (2026-11-19)
 - Settings > Update gets an Install button (owner request). It downloads the release APK from this repository's
   release downloads only, checks it against the release's .sha256 and against this app's own signer, package name and
-  a newer versionCode, then installs it as the shell user over the head unit's loopback adbd (AdbShell, copied from
-  HUD Cluster). Firmware 1.3's package verifier rejects shell installs, so the install script turns
+  a newer versionCode, then installs it as the shell user over the head unit's loopback adbd (LoopbackAdb,
+  written from the public ADB protocol docs; HUD Cluster's AdbShell derives from Custom Profiles' unlicensed
+  LoopbackAdbClient, so it is not reused). Firmware 1.3's package verifier rejects shell installs, so the install script turns
   verifier_verify_adb_installs off for its own install and an EXIT trap restores it (HUD Cluster's VERIFIER_OFF).
   `pm install -r` keeps settings and history; the script runs detached and reopens the app.
+
+## Clean VHAL stream (2026-11-19)
+- VehiclePropertyObserver, VehiclePropertyManager and vhal.proto (from Geely Custom Profiles, unlicensed) are
+  replaced by VhalStream: raw gRPC byte calls decoded with ApvpBatteryStream's own field reader, no generated
+  protobuf code. Only StartPropertyValuesStream and SendAllPropertyValuesToStream exist; the set-property call is not
+  referenced at all. The protobuf plugin and the protobuf-lite / grpc-protobuf-lite / annotations dependencies are
+  gone (APK 7.0 -> 6.3 MB). The whole repository is now Apache 2.0.

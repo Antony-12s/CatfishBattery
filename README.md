@@ -138,5 +138,3 @@ Catfish Battery is licensed under the [Apache License 2.0](LICENSE). Copyright 2
 
 You may use, change and redistribute it, including commercially. If you share it or a work based on it, keep the
 [NOTICE](NOTICE) file and credit the original developer.
-
-Three files that came from Geely Custom Profiles are not covered by this license; [NOTICE](NOTICE) lists them.

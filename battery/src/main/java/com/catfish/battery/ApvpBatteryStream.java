@@ -200,14 +200,14 @@ final class ApvpBatteryStream implements AutoCloseable {
         return data;
     }
 
-    private static final class Field { int tag; long number; byte[] bytes; }
-    private static long readVarint(byte[] b,int[] pos) {
+    static final class Field { int tag; long number; byte[] bytes; }
+    static long readVarint(byte[] b,int[] pos) {
         long n=0;for(int shift=0;shift<64;shift+=7) {
             if(pos[0]>=b.length)throw new IllegalArgumentException("Truncated varint");
             int v=b[pos[0]++]&255;n|=(long)(v&127)<<shift;if((v&128)==0)return n;
         }throw new IllegalArgumentException("Invalid varint");
     }
-    private static List<Field> fields(byte[] b) {
+    static List<Field> fields(byte[] b) {
         if(b.length>65536)throw new IllegalArgumentException("Oversized message");
         ArrayList<Field> out=new ArrayList<>();int[] pos={0};
         while(pos[0]<b.length) {
