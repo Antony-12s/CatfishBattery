@@ -3,7 +3,7 @@
 #   SERIAL=<ip:port> ./run.sh [--guard-only]
 set -eu
 ADB=$HOME/Android/Sdk/platform-tools/adb
-S=${SERIAL:-192.168.1.158:5566}
+S=${SERIAL:?set SERIAL=<serial or ip:port> of the head unit}
 JAR=${JAR:-out/becm-soh/ReadBecmDid.jar}
 car() { timeout 40 "$ADB" -s "$S" shell "$@"; }
 product=$(car getprop ro.build.product | tr -d '\r')
