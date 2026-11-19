@@ -83,6 +83,8 @@ final class SohRecorder {
     private boolean becmRunning;
     private String lastOutcome = "";
     private String state = "starting"; // for the page: why there is no new reading
+    private static final long MANUAL_GAP_MS = 60_000;
+    private long lastManualRead = Long.MIN_VALUE / 2;
     private ScheduledExecutorService executor;
 
     SohRecorder(File dir, Supplier<Integer> gear, Callable<Double> fetch) {
@@ -115,10 +117,20 @@ final class SohRecorder {
         executor.execute(() -> becmTick(System.currentTimeMillis(), becm));
     }
 
-    /** One BECM attempt: only when no BECM row exists for today and the gear is Park; failures are retried next open. */
-    void becmTick(long now, Callable<Double> becm) {
+    /** The owner's "read now" on the Health page: same Park guard and request, ignores today's row, once a minute. */
+    synchronized void readBecmNow(Callable<Double> becm) {
+        if (executor == null || becmRunning) return;
+        executor.execute(() -> becmTick(System.currentTimeMillis(), becm, true));
+    }
+
+    void becmTick(long now, Callable<Double> becm) { becmTick(now, becm, false); }
+
+    /** One BECM attempt: only when no BECM row exists for today (unless asked) and the gear is Park; failures are retried next open. */
+    void becmTick(long now, Callable<Double> becm, boolean manual) {
         synchronized (this) {
-            if (becmRunning || hasBecmToday(now)) return;
+            if (becmRunning) return;
+            if (manual ? now - lastManualRead < MANUAL_GAP_MS : hasBecmToday(now)) return;
+            if (manual) lastManualRead = now;
             Integer g = gear.get();
             if (g == null || g != GEAR_PARK) {
                 note("BECM SOH skipped: " + (g == null ? "gear unknown" : "gear " + g));

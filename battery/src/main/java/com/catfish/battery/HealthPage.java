@@ -50,7 +50,11 @@ final class HealthPage extends FrameLayout {
         LinearLayout titles = ui.column();
         titles.addView(ui.title("Battery health"));
         TextView kicker = ui.kicker();
-        ChargingUi.set(kicker, "SOH from the BECM, once a day in Park");
+        ChargingUi.set(kicker, "SOH from the BECM, once a day in Park · tap to read now");
+        kicker.setOnClickListener(v -> {
+            BatteryDataHub.readBecmSohNow();
+            android.widget.Toast.makeText(context, "Reading the BECM (Park only)…", android.widget.Toast.LENGTH_SHORT).show();
+        });
         titles.addView(kicker);
         head.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         LinearLayout rail = ui.row();

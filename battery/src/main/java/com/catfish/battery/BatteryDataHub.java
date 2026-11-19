@@ -77,6 +77,13 @@ final class BatteryDataHub {
         soh.readBecmIfDue(() -> BecmSoh.read(app));
     }
 
+    /** Health page "read now": the owner asked, so today's reading does not block it (Park and UdsPolicy still do). */
+    static synchronized void readBecmSohNow() {
+        if (soh == null) return;
+        Context app = appContext;
+        soh.readBecmNow(() -> BecmSoh.read(app));
+    }
+
     static synchronized VehicleBatteryReader reader() { return reader; }
     static synchronized BatteryLogger logger() { return logger; }
     static synchronized SohRecorder soh() { return soh; }

@@ -199,6 +199,22 @@ public class SohRecorderTest {
     }
 
     @Test
+    public void readNowIgnoresTodaysRowButNotParkAndWaitsAMinute() throws Exception {
+        AtomicReference<Integer> gear = new AtomicReference<>(4);
+        int[] reads = {0};
+        SohRecorder r = becmRecorder(tempDir(), gear);
+        r.becmTick(T0, () -> { reads[0]++; return 96.44; });
+        r.becmTick(T0 + 1000, () -> { reads[0]++; return 96.44; }, true);
+        assertEquals(2, reads[0]);                       // asked: today's row does not block it
+        r.becmTick(T0 + 30_000, () -> { reads[0]++; return 96.44; }, true);
+        assertEquals(2, reads[0]);                       // at most once a minute
+        gear.set(8);
+        r.becmTick(T0 + 120_000, () -> { reads[0]++; return 96.44; }, true);
+        assertEquals(2, reads[0]);                       // never outside Park
+        assertEquals(2, r.entries().size());
+    }
+
+    @Test
     public void failedBecmReadIsRetriedOnTheNextOpenAndRecordsNothing() throws Exception {
         AtomicReference<Integer> gear = new AtomicReference<>(4);
         SohRecorder r = becmRecorder(tempDir(), gear);
