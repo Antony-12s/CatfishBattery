@@ -128,6 +128,15 @@ Not verified: an automatic reset firing on the car, a real charge logged by
 | `battery/tools/` | Page export and UI checks |
 | `docs/screenshots/` | Car screenshots used in this README |
 | [DECISIONS.md](DECISIONS.md) | Scope and design decisions |
+| [LICENSE](LICENSE) | Apache License 2.0 |
+| [NOTICE](NOTICE) | Copyright, required credit, files not covered |
 | [NOTICE.md](NOTICE.md) | Source provenance |
 
-This private extraction does not establish a new code license.
+## License
+
+Catfish Battery is licensed under the [Apache License 2.0](LICENSE). Copyright 2026 Antony-12s.
+
+You may use, change and redistribute it, including commercially. If you share it or a work based on it, keep the
+[NOTICE](NOTICE) file and credit the original developer.
+
+Three files that came from Geely Custom Profiles are not covered by this license; [NOTICE](NOTICE) lists them.

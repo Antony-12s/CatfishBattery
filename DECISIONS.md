@@ -126,3 +126,9 @@ Do not resolve signer mismatches by uninstalling or clearing data.
 - Health: the trend, the day counter and the rates use BECM readings only when there are any (canspi stays in the
   table). Mixing 0.5 % canspi steps with 0.01 % BECM reads produced a fake -16 %/year. The counter now counts
   calendar days with a reading instead of elapsed whole days.
+
+## License (2026-11-19)
+- Apache License 2.0 for the code Antony-12s wrote (owner's choice: free use, required credit through NOTICE).
+- VehiclePropertyObserver.java, VehiclePropertyManager.java and vhal.proto derive from Geely Custom Profiles, which
+  has no license; they are listed in NOTICE as not covered. Rewriting them from scratch would let the whole repository
+  carry the license.

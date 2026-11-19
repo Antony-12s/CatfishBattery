@@ -1,0 +1,27 @@
+Catfish Battery
+Copyright 2026 Antony-12s (https://github.com/Antony-12s/CatfishBattery)
+
+This product includes software developed by Antony-12s.
+If you redistribute this software or a work derived from it, keep this NOTICE
+file and credit the original developer, as section 4(d) of the Apache License,
+Version 2.0 requires.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE), except for the
+files listed below.
+
+Files NOT covered by this license
+---------------------------------
+These files derive from Geely Custom Profiles
+(https://github.com/eucalyptussoftware/GeelyCustomProfiles), whose authors
+(EucalyptusSoftware, bsidermob and contributors) have not published a license.
+Antony-12s cannot license them, so the Apache License does not apply to them:
+
+  battery/src/main/java/com/catfish/battery/VehiclePropertyObserver.java
+  battery/src/main/java/com/catfish/battery/VehiclePropertyManager.java
+  battery/src/main/proto/vhal.proto
+
+Third-party libraries
+---------------------
+The app links these libraries under their own licenses:
+  gRPC Java (Apache License 2.0), Protocol Buffers Java Lite (BSD 3-Clause),
+  ZXing core (Apache License 2.0).
