@@ -70,18 +70,29 @@ final class VhalStream {
     static synchronized VhalStream shared() {
         if (shared == null) {
             shared = new VhalStream();
-            shared.listeners.add(new Listener() {
-                @Override public void onValue(int prop, int area, int intValue, float floatValue, boolean isFloat) {
-                    if (isFloat) FLOATS.put(prop, floatValue); else INTS.put(prop, intValue);
-                }
-                @Override public void onConnected(boolean connected) { }
-            });
+            shared.listeners.add(CACHE);
             Thread loop = new Thread(shared::run, "CatfishBatteryVhal");
             loop.setDaemon(true);
             loop.start();
         }
         return shared;
     }
+
+    /**
+     * The int / float caches hold live values only: a value the car marks unavailable, or every value when the
+     * stream drops, leaves the cache, so a stale reading is never shown as live ("--" instead).
+     */
+    static final Listener CACHE = new Listener() {
+        @Override public void onValue(int prop, int area, int intValue, float floatValue, boolean isFloat) {
+            if (isFloat) { FLOATS.put(prop, floatValue); INTS.remove(prop); } else { INTS.put(prop, intValue); FLOATS.remove(prop); }
+        }
+        @Override public void onAvailability(int prop, int area, boolean available) {
+            if (!available) { INTS.remove(prop); FLOATS.remove(prop); }
+        }
+        @Override public void onConnected(boolean connected) {
+            if (!connected) { INTS.clear(); FLOATS.clear(); }
+        }
+    };
 
     static Map<Integer, Integer> ints() { return INTS; }
     static Map<Integer, Float> floats() { return FLOATS; }
@@ -179,6 +190,7 @@ final class VhalStream {
 
     private void setConnected(boolean now) {
         if (connected == now) return;
+        // connected only once a batch has arrived (onNext), never on channel creation
         connected = now;
         Log.i(TAG, "VHAL stream " + (now ? "connected" : "disconnected"));
         for (Listener l : listeners) l.onConnected(now);

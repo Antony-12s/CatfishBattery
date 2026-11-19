@@ -163,3 +163,11 @@ Do not resolve signer mismatches by uninstalling or clearing data.
   production environment, so a PackageInstaller session from this app would be rejected. Verified on the car:
   reinstalling the same 1.6.1 APK with the verifier on failed with INSTALL_FAILED_VERIFICATION_FAILURE
   (reason installer_not_whitelist) and the car showed "installation blocked, App Store only".
+
+## CLI Park guard over the VHAL gRPC stream; live-only VHAL cache (2026-11-19)
+- The VHAL gRPC stream (localhost:40004) does carry GEAR_SELECTION and CURRENT_GEAR (verified on the car), so the
+  command-line ReadBecmDid / ScanDids guard now subscribes to it instead of running `cmd car_service` in a loop.
+  It is a minimal hand-written HTTP/2 + protobuf client (stream and send-all calls only, same session id on both),
+  so the tool stays one dex file. android.car is not usable there: the shell user lacks CAR_POWERTRAIN.
+- VhalStream's int / float caches drop a value the car marks unavailable and clear on disconnect, so the app never
+  shows a stale reading as live. APVP values were already cleared on disconnect.

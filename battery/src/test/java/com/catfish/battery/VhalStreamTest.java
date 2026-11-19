@@ -53,6 +53,26 @@ public class VhalStreamTest {
         @Override public void onConnected(boolean connected) { }
     }
 
+    @Test public void cacheDropsUnavailableAndDisconnectedValues() {
+        VhalStream.CACHE.onConnected(false);
+        List<VhalStream.Listener> cache = java.util.Collections.singletonList(VhalStream.CACHE);
+        ByteArrayOutputStream live = new ByteArrayOutputStream();
+        bytes(live, 1, wrapped(0x11600204, 0, 0, null, 29190.5f, null));
+        bytes(live, 1, wrapped(0x11400400, 0, 0, 4, null, null));
+        VhalStream.decodeBatch(live.toByteArray(), cache);
+        assertEquals(29190.5f, VhalStream.floats().get(0x11600204), 0f);
+        assertEquals(Integer.valueOf(4), VhalStream.ints().get(0x11400400));
+
+        ByteArrayOutputStream gone = new ByteArrayOutputStream();
+        bytes(gone, 1, wrapped(0x11400400, 0, 1, null, null, null));     // status 1 = unavailable
+        VhalStream.decodeBatch(gone.toByteArray(), cache);
+        assertTrue(!VhalStream.ints().containsKey(0x11400400));          // no stale Park
+        assertEquals(29190.5f, VhalStream.floats().get(0x11600204), 0f); // others untouched
+
+        VhalStream.CACHE.onConnected(false);
+        assertTrue(VhalStream.floats().isEmpty() && VhalStream.ints().isEmpty());
+    }
+
     @Test public void decodesFloatIntAndUnavailableValues() {
         ByteArrayOutputStream batch = new ByteArrayOutputStream();
         bytes(batch, 1, wrapped(0x11600204, 0, 0, null, 29190.5f, null));   // odometer, float

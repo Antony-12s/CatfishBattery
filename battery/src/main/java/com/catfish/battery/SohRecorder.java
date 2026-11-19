@@ -344,7 +344,8 @@ final class SohRecorder {
 
     /**
      * GEAR_SELECTION through android.car's CarPropertyManager (read only), or null when the car API or the value is
-     * unavailable. Reflection keeps android.car out of the build; the gRPC VHAL stream does not carry the gear.
+     * unavailable. Reflection keeps android.car out of the build. (The VHAL gRPC stream does carry both gears too,
+     * verified 2026-11-19; the CLI tool ReadBecmDid uses it because the shell user lacks CAR_POWERTRAIN.)
      */
     @android.annotation.SuppressLint("PrivateApi") // android.car is the head unit's system car library (uses-library)
     static Supplier<Integer> carGear(android.content.Context context) {
