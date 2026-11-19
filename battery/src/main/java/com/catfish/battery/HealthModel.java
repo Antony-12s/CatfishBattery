@@ -36,6 +36,7 @@ final class HealthModel {
     final Fit byTime, byKm, byDiff;
     final double[] days, kms, diffs, pctsAll, pctsKm, pctsDiff;
     final long firstTs;
+    final String roughNote;
     final int collectDays; // calendar days with a reading so far, capped at MIN_DAYS
     final List<String[]> table = new ArrayList<>(); // date, SOH, source, km, V diff; newest first
 
@@ -95,6 +96,8 @@ final class HealthModel {
             projection = "";
         }
         collectDays = Math.min(MIN_DAYS, readingDays.size());
+        // the trend charts always show their slope; until MIN_DAYS it is a rough figure and says so
+        roughNote = enough ? "" : "rough until " + MIN_DAYS + " days of readings (" + collectDays + " so far)";
         collecting = collectDays + " of " + MIN_DAYS + " days · " + n
                 + (n == 1 ? " reading" : " readings");
         sinceNew = last != null && Double.isFinite(latestKm) && latestKm > 1000 && latest < 100

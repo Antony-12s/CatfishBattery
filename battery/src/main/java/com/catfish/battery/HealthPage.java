@@ -197,6 +197,8 @@ final class HealthPage extends FrameLayout {
 
         String d0 = m.table.isEmpty() ? "" : m.table.get(m.table.size() - 1)[0].split(" ")[0] + " " + m.table.get(m.table.size() - 1)[0].split(" ")[1];
         String d1 = m.table.isEmpty() ? "" : m.table.get(0)[0].split(" ")[0] + " " + m.table.get(0)[0].split(" ")[1];
+        byTime.setNote(m.roughNote);
+        byKm.setNote(m.roughNote);
         byTime.setData(m.days, m.pctsAll, m.byTime, d0, d1);
         byKm.setData(m.kms, m.pctsKm, m.byKm, kmLabel(m.kms, true), kmLabel(m.kms, false));
         byDiff.setData(m.diffs, m.pctsDiff, m.byDiff, mvLabel(m.diffs, true), mvLabel(m.diffs, false));

@@ -35,6 +35,7 @@ public class HealthModelTest {
         rows.set(60, e(T0 + 60 * DAY, 99.0, 20000 + 60 * 69.3, 3));
         HealthModel m = HealthModel.from(rows, T0 + 120 * DAY, BANGKOK);
         assertTrue(m.enough);
+        assertEquals("", m.roughNote);
         assertTrue(m.perYear < -2.5 && m.perYear > -3.5);
         assertTrue(m.per10kKm < -0.9 && m.per10kKm > -1.5);
         assertTrue(m.per10kText.matches("about \u2212[01]\\.[0-9] % per 10,000 km"));
@@ -49,6 +50,7 @@ public class HealthModelTest {
         HealthModel m = HealthModel.from(rows, T0 + 3 * DAY, BANGKOK);
         assertFalse(m.enough);
         assertEquals("2 of 30 days · 2 readings", m.collecting); // calendar days with a reading, not elapsed days
+        assertEquals("rough until 30 days of readings (2 so far)", m.roughNote);
         // since new, assuming 100 % at 0 km: (96.44 - 100) / 29,400 km * 10,000
         assertEquals("about \u22121.2 % per 10,000 km since new", m.sinceNew);
         assertEquals("", m.projection);

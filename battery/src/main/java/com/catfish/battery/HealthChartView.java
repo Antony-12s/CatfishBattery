@@ -19,7 +19,8 @@ final class HealthChartView extends View {
     private DashPathEffect dash;
     private String stats = "";
     private final ChargingUi ui;
-    private final String title, unit, note;
+    private final String title, unit;
+    private String note;
     private final double slopeScale; // slope per x unit -> slope per shown unit (per 10,000 km, per year)
     private final String slopeUnit;
     private double[] x = new double[0], y = new double[0];
@@ -36,6 +37,11 @@ final class HealthChartView extends View {
         this.slopeUnit = slopeUnit;
         this.note = note;
         setContentDescription(title);
+    }
+
+    void setNote(String note) {
+        this.note = note;
+        invalidate();
     }
 
     void setData(double[] x, double[] y, HealthModel.Fit fit, String xMinText, String xMaxText) {
