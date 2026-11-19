@@ -33,6 +33,24 @@ public class UpdateCheckTest {
     }
 
     @Test
+    public void releaseApkAndChecksumComeFromTheAssets() {
+        String json = "[{\"tag_name\":\"v1.6.1\",\"html_url\":\"https://github.com/Antony-12s/CatfishBattery/releases/tag/v1.6.1\","
+                + "\"published_at\":\"2026-11-19T04:11:28Z\",\"body\":\"x\",\"assets\":["
+                + "{\"name\":\"catfish_battery_1.6.1_release.apk\",\"size\":7016953,"
+                + "\"browser_download_url\":\"https://github.com/Antony-12s/CatfishBattery/releases/download/v1.6.1/catfish_battery_1.6.1_release.apk\"},"
+                + "{\"name\":\"catfish_battery_1.6.1_release.apk.sha256\","
+                + "\"browser_download_url\":\"https://github.com/Antony-12s/CatfishBattery/releases/download/v1.6.1/catfish_battery_1.6.1_release.apk.sha256\"}]},"
+                // an asset served from anywhere but this repository's releases is never offered for install
+                + "{\"tag_name\":\"v1.6\",\"html_url\":\"https://github.com/Antony-12s/CatfishBattery/releases/tag/v1.6\",\"body\":\"x\",\"assets\":["
+                + "{\"name\":\"catfish_battery_1.6_release.apk\",\"browser_download_url\":\"https://evil.example/a.apk\"}]}]";
+        List<UpdateCheck.Release> list = UpdateCheck.parse(json);
+        assertEquals("https://github.com/Antony-12s/CatfishBattery/releases/download/v1.6.1/catfish_battery_1.6.1_release.apk", list.get(0).apkUrl);
+        assertEquals(list.get(0).apkUrl + ".sha256", list.get(0).sha256Url);
+        assertNull(list.get(1).apkUrl);
+        assertNull(list.get(1).sha256Url);
+    }
+
+    @Test
     public void notesBecomePlainBulletLines() {
         UpdateCheck.Release r = UpdateCheck.parse(RELEASES).get(0);
         assertEquals(List.of("• Settings: Region card", "   – nested detail", "Verified: 200/200"), r.notes);

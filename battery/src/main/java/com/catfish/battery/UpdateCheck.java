@@ -26,15 +26,24 @@ final class UpdateCheck {
     static final String RELEASES_PAGE = "https://github.com/Antony-12s/CatfishBattery/releases";
     private static final int MAX_BYTES = 256 * 1024, TEXT_MAX = 400, NOTES_MAX = 60;
 
+    // release assets are installed only from this repository's own release downloads
+    static final String DOWNLOADS = "https://github.com/Antony-12s/CatfishBattery/releases/download/";
+
     static final class Release {
         final String version, title, date, url;
         final List<String> notes;
+        final String apkUrl, sha256Url; // null when the release has no installable APK and checksum
         Release(String version, String title, String date, String url, List<String> notes) {
+            this(version, title, date, url, notes, null, null);
+        }
+        Release(String version, String title, String date, String url, List<String> notes, String apkUrl, String sha256Url) {
             this.version = version;
             this.title = title;
             this.date = date;
             this.url = url;
             this.notes = notes;
+            this.apkUrl = apkUrl;
+            this.sha256Url = sha256Url;
         }
     }
 
@@ -53,7 +62,18 @@ final class UpdateCheck {
             if (!version.matches("\\d+(\\.\\d+){0,3}") || !url.startsWith("https://github.com/")) continue;
             String published = r.optString("published_at");
             String date = published.length() >= 10 ? ChargerPrices.dateText(published.substring(0, 10)) : "";
-            out.add(new Release(version, clean(r.optString("name")), date, url, notes(r.optString("body"))));
+            String apk = null, sha = null;
+            JSONArray assets = r.optJSONArray("assets");
+            for (int a = 0; assets != null && a < assets.length(); a++) {
+                JSONObject asset = assets.optJSONObject(a);
+                String link = asset == null ? "" : asset.optString("browser_download_url");
+                if (!link.startsWith(DOWNLOADS + "v" + version + "/")) continue;
+                if (link.endsWith("_release.apk")) apk = link;
+                else if (link.endsWith("_release.apk.sha256")) sha = link;
+            }
+            boolean both = apk != null && sha != null && sha.equals(apk + ".sha256");
+            out.add(new Release(version, clean(r.optString("name")), date, url, notes(r.optString("body")),
+                    both ? apk : null, both ? sha : null));
         }
         return out;
     }

@@ -65,6 +65,8 @@ final class SettingsPage extends FrameLayout {
     private ChargerPrices prices;
     private boolean pricesOnline, fetchStarted, updateStarted, checking;
     private List<UpdateCheck.Release> releases;
+    private boolean installing, installFailed;
+    private String installState; // null until Install is tapped
     private JSONObject live; // the dataJson() poll read when the page was shown, for the cost to 80 %
 
     SettingsPage(Context context) {
@@ -351,11 +353,28 @@ final class SettingsPage extends FrameLayout {
         });
     }
 
+    /** Install button: download, check and install off the UI thread; the app is replaced and reopens by itself. */
+    private void install(UpdateCheck.Release release) {
+        if (installing) return;
+        installing = true;
+        installFailed = false;
+        installState = "Starting…";
+        buildUpdate();
+        ChargingUi.background(() -> {
+            try {
+                UpdateInstaller.install(getContext(), release, step -> post(() -> { installState = step; buildUpdate(); }));
+            } catch (java.io.IOException | RuntimeException e) {
+                String why = e.getMessage() == null ? e.toString() : e.getMessage();
+                post(() -> { installing = false; installFailed = true; installState = "Install failed: " + why; buildUpdate(); });
+            }
+        });
+    }
+
     private void buildUpdate() {
         update.removeAllViews();
         String installed = BuildConfig.VERSION_NAME;
         ChargingUi.set(summaries[4], checking && releases == null ? "Checking… · you have " + installed : UpdateCheck.summary(releases, installed));
-        update.addView(h3("Update", "Latest releases of Catfish Battery on GitHub. The app only reads the list; installing stays with you."));
+        update.addView(h3("Update", "Latest releases of Catfish Battery on GitHub. Install updates in place: settings and history stay."));
         UpdateCheck.Release latest = UpdateCheck.latest(releases);
         boolean available = latest != null && UpdateCheck.newer(latest.version, installed);
 
@@ -370,10 +389,26 @@ final class SettingsPage extends FrameLayout {
         ChargingUi.set(small, "Installed " + installed + " (build " + BuildConfig.VERSION_CODE + ")"
                 + (latest == null ? (checking ? "" : " · GitHub not reached") : " · latest " + latest.version + (latest.date.isEmpty() ? "" : ", " + latest.date)));
         status.addView(small);
+        LinearLayout actions = ui.row();
+        if (available && latest.apkUrl != null) {
+            Button install = ui.button(installing ? "Installing…" : "Install " + latest.version, 22, true);
+            install.setEnabled(!installing);
+            install.setOnClickListener(v -> install(latest));
+            actions.addView(install, ChargingUi.wrap());
+        }
         Button check = ui.button(checking ? "Checking…" : "Check now", 22, false);
-        check.setEnabled(!checking);
+        check.setEnabled(!checking && !installing);
         check.setOnClickListener(v -> checkUpdate(true));
-        status.addView(check, ChargingUi.wrap());
+        LinearLayout.LayoutParams checkLp = ChargingUi.wrap();
+        if (actions.getChildCount() > 0) checkLp.leftMargin = ui.dp(14);
+        actions.addView(check, checkLp);
+        status.addView(actions, ChargingUi.wrap());
+        if (installState != null) {
+            TextView note = ui.text(20, installFailed ? ui.danger : ui.muted, 400);
+            note.setPadding(0, ui.dp(12), 0, 0);
+            ChargingUi.set(note, installState);
+            status.addView(note);
+        }
         top.addView(status, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         String link = latest == null ? UpdateCheck.RELEASES_PAGE : latest.url;
