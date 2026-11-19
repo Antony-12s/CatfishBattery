@@ -11,8 +11,8 @@ android {
         applicationId "com.catfish.battery"
         minSdk 30
         targetSdk 33
-        versionCode 9
-        versionName "1.6.2"
+        versionCode 10
+        versionName "1.6.3"
         // shown in Settings > About
         buildConfigField "long", "BUILD_TIME", "${System.currentTimeMillis()}L"
         buildConfigField "String", "GIT_COMMIT", "\"${providers.exec { commandLine 'git', 'rev-parse', '--short', 'HEAD' }.standardOutput.asText.get().trim()}\""
