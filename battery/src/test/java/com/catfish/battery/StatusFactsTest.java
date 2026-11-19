@@ -28,11 +28,12 @@ public class StatusFactsTest {
         assertEquals("--", f.used);
         assertEquals("--", f.charged);
         assertEquals("--", f.regen);
+        assertEquals(false, f.regenReal); // a missing total is never green
         assertEquals("--", f.cost);
         assertEquals("no price set", f.costNote);
         assertEquals("from boot", f.since);
-        assertEquals("0 / 118", f.cellCount);
-        assertEquals("0 / 12", f.sensorCount);
+        assertEquals("0/118 cells", f.cellCount);
+        assertEquals("0/12 sensors", f.sensorCount);
         assertEquals("--", f.legendVmin);
         assertEquals("--", f.legendTmax);
     }
@@ -46,7 +47,7 @@ public class StatusFactsTest {
         assertEquals("3690 mV", f.cellMin);
         assertEquals("35 mV", f.cellDelta);
         assertEquals(StatusFormat.WARN, f.deltaLevel);
-        assertEquals("3 / 118", f.cellCount);
+        assertEquals("3/118 cells", f.cellCount);
         assertEquals("3690 mV", f.legendVmin);
         assertEquals("3725 mV", f.legendVmax);
     }
@@ -69,11 +70,11 @@ public class StatusFactsTest {
         assertEquals("31 \u00b0C", f.tempMax);
         assertEquals("27 \u00b0C", f.tempMin);
         assertEquals("4 \u00b0C", f.tempSpread);
-        assertEquals("2 / 12", f.sensorCount);
+        assertEquals("2/12 sensors", f.sensorCount);
         assertEquals("27 \u00b0C", f.legendTmin);
         f = facts("{\"streamConnected\":false,\"cells\":[]," + temps + "}", null);
         assertEquals("--", f.tempMax);
-        assertEquals("0 / 12", f.sensorCount);
+        assertEquals("0/12 sensors", f.sensorCount);
     }
 
     @Test
@@ -86,6 +87,7 @@ public class StatusFactsTest {
         assertEquals("12.35 kWh", f.used);
         assertEquals("10.00 kWh", f.charged);
         assertEquals("2.35 kWh", f.regen);
+        assertEquals(true, f.regenReal);
         // (12.345 - 2.345) kWh / 0.9 * 0.3 = 3.33
         assertEquals("$3.3", f.cost);
         assertEquals("0.30 $/kWh", f.costNote);
@@ -100,6 +102,7 @@ public class StatusFactsTest {
                 + "\"chargers\":[{\"id\":\"home\",\"price\":9,\"tou\":true,\"peak\":5,\"offPeak\":2.5}]}}";
         StatusFacts f = facts(data, settings);
         assertEquals("--", f.charged);
+        assertEquals(false, f.regenReal); // 0 Wh of regen stays plain
         assertEquals("\u0e3f2.5", f.cost);
         assertEquals("2.50 \u0e3f/kWh", f.costNote);
         assertEquals("since 1 Jan 00:00", f.since);

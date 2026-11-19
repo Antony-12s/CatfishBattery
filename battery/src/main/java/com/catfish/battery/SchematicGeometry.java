@@ -36,16 +36,16 @@ public final class SchematicGeometry {
     }
 
     /**
-     * Interleaved design-space x/y coordinates in forward flow order. Staircase layout (2026-11-18): every wire is one
-     * straight run from a port on the pack outline or a card edge into the middle of the next card's edge.
+     * Interleaved design-space x/y coordinates in forward flow order. Layout 2026-11-19: every wire is one straight run
+     * from a port on the pack outline or a card edge into the next card's edge (Loads and 12 V share x 884).
      * hv: pack apex -> Loads card; dc: pack lower-right face -> DC-DC; lv: DC-DC -> 12 V; chg: inlet -> Loads card.
      */
     public static float[] flowPath(String key) {
         return switch (key) {
-            case "hv" -> new float[]{764,192, 930,192};
-            case "dc" -> new float[]{430,392, 607,392};
-            case "lv" -> new float[]{903,392, 983,392};
-            case "chg" -> new float[]{900,274, 930,274};
+            case "hv" -> new float[]{764,192, 884,192};
+            case "dc" -> new float[]{430,392, 574,392};
+            case "lv" -> new float[]{856,392, 884,392};
+            case "chg" -> new float[]{856,298, 884,298};
             default -> throw new IllegalArgumentException(key);
         };
     }
@@ -176,29 +176,47 @@ public final class SchematicGeometry {
         boolean tag() { return Float.isNaN(lane); }
     }
 
+    /**
+     * Sensor legend under the HV pack card (2026-11-19): four groups, each header 22 above its first row, rows 26 apart,
+     * 34 from a group's last row to the next header. Rows: dot at x -79, label from -67, value right-aligned at 42,
+     * trace from 48 along the row's own lane. Port order on the BMS face, top first (owner): coolant out, coolant in,
+     * DC+, DC−. Pack tags hang straight 38 units above (behind the bus: P1, P4) or below (P2, P3, air) their anchor.
+     */
+    static final String[] LEGEND_GROUPS = {"BMS SYSTEM", "HV BUS", "COOLANT", "DC CHARGE"};
+    static final float[] LEGEND_HEADER_Y = {158, 206, 280, 354};
+    static final float LEGEND_X = -84, LEGEND_VALUE_X = 42, LEGEND_TRACE_X = 48, TAG_DROP = 38;
+
     static List<Sensor> sensors() {
         return List.of(
-                tag(1,"P1","P1",iso(135,43,44),-4,-40),
-                tag(4,"P4","P4",iso(289,43,44),6,-40),
-                tag(2,"P2","P2",iso(135,137,44),-4,40),
-                tag(3,"P3","P3",iso(289,137,44),34,22),
-                row(11,"board","BMS board",iso(27,20,54),64,154,0xff8f9cb3),
-                row(7,"B+","B+",iso(70,87,45),110,146,0xfff2616b),
-                row(8,"B−","B−",iso(54,92,45),140,138,0xff1a1e26),
-                row(9,"DC+","DC+",iso(-1,66,27),186,130,0xfff2616b),
-                row(10,"DC−","DC−",iso(-1,86,27),216,122,0xff1a1e26),
-                row(5,"out","Coolant out",iso(-1,126,27),262,114,0xfff0792a),
-                row(6,"in","Coolant in",iso(-1,148,27),292,106,0xff2f8fe0),
-                tag(12,"air","Air",iso(208,90,30),30,-28));
+                tag(1,"P1","P1",iso(135,43,44),-TAG_DROP),
+                tag(4,"P4","P4",iso(289,43,44),-TAG_DROP),
+                tag(2,"P2","P2",iso(135,137,44),TAG_DROP),
+                tag(3,"P3","P3",iso(289,137,44),TAG_DROP),
+                row(11,"board","BMS board",iso(27,20,54),180,200,0xff8f9cb3),
+                row(7,"B+","B+",iso(70,87,45),228,186,0xfff2616b),
+                row(8,"B−","B−",iso(54,92,45),254,172,0xff1a1e26),
+                row(5,"out","Coolant out",iso(-1,66,27),302,158,0xfff0792a),
+                row(6,"in","Coolant in",iso(-1,86,27),328,144,0xff2f8fe0),
+                row(9,"DC+","DC+",iso(-1,126,27),376,150,0xfff2616b),
+                row(10,"DC−","DC−",iso(-1,148,27),402,164,0xff1a1e26),
+                tag(12,"air","Air",iso(208,90,30),TAG_DROP));
+    }
+
+    /** A legend row's circuit-board trace: right from the row, down or up its lane, right into the anchor. */
+    static float[] legendTrace(Sensor s) {
+        Point a = s.anchor();
+        float y = s.labelAt().y()-5;
+        if (Math.abs(a.y-y) < 2) return new float[]{LEGEND_TRACE_X,y,a.x,a.y};
+        return trace(new Point(LEGEND_TRACE_X,y),new Point(s.lane(),y),new Point(s.lane(),a.y),a);
     }
 
     private static Sensor row(int n, String label, String name, Point at, float y, float lane, int color) {
-        return new Sensor(n,label,name,at,new Point(-56,y),color,
+        return new Sensor(n,label,name,at,new Point(LEGEND_X,y),color,
                 color == 0xff1a1e26 ? 0xff5a6478 : 0xff0a0f16,lane);
     }
 
-    private static Sensor tag(int n, String label, String name, Point at, float dx, float dy) {
-        return new Sensor(n,label,name,at,new Point(at.x+dx,at.y+dy),0,0,Float.NaN);
+    private static Sensor tag(int n, String label, String name, Point at, float dy) {
+        return new Sensor(n,label,name,at,new Point(at.x,at.y+dy),0,0,Float.NaN);
     }
 
     static float[] trace(Point... points) {

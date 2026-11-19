@@ -104,3 +104,16 @@ Do not resolve signer mismatches by uninstalling or clearing data.
   a glow, a low cell sinks, value colours blend, and a reading that changes any
   cell sends one small wave across the grid from the most deviating cell (no
   wave when nothing changed, so a 1 Hz refresh does not keep the grid moving).
+
+## Schematic layout 2026-11-19 (owner's mockup 7 + swipe card)
+- HV pack card with the SOC graph moves to the top-left (-92..390 × 6..127); the sensor legend sits under it in four
+  groups (BMS SYSTEM, HV BUS, COOLANT, DC CHARGE), each with a bar beside its rows. Port order on the BMS face, top
+  first: coolant out, coolant in, DC+, DC−. Pack tags hang straight 38 units above (P1, P4) or below (P2, P3, air).
+- Right column shares x 884: a swipe card (Range & energy / Pack power / Extremes, dots underneath), Loads
+  (120..340), and the 12 V battery; DC-DC sits under the pack. Wires were shortened to the new card edges.
+- Pack painted as "glass": translucent cells with a rim, tray and BMS edged like the cards, soft floor reflection.
+  The pack geometry, 12 sensor anchors and the four energy-flow paths' meaning are unchanged; no FRONT label.
+- Design-review fixes: one card title style (bold 18 + state pill), Loads card always titled "Loads", Regen is green
+  only when real regen was recorded, header counters read "n/118 cells" and "n/12 sensors".
+- Swipe card values: RANGE_REMAINING (rangeKm), HvBattEgyAvlDcha1 (energyWh), V × I pack power, highest cell with its
+  number, hottest/coolest sensor. Missing readings show "--". No trip Wh/km yet: the app does not compute it.

@@ -26,6 +26,7 @@ final class StatusFacts {
     final String tempMax, tempMin, tempSpread;
     final String used, charged, regen, cost, costNote, since;
     final String cellCount, sensorCount;
+    final boolean regenReal;
     final String legendVmin, legendVmax, legendTmin, legendTmax;
 
     private StatusFacts(Integer vMax, Integer vMin, Integer tMax, Integer tMin, int cells, int sensors,
@@ -45,13 +46,14 @@ final class StatusFacts {
         legendVmax = cellMax;
         legendTmin = tempMin;
         legendTmax = tempMax;
-        cellCount = cells + " / " + CellsModel.CELLS;
-        sensorCount = sensors + " / " + CellsModel.SENSORS;
+        cellCount = cells + "/" + CellsModel.CELLS + " cells";
+        sensorCount = sensors + "/" + CellsModel.SENSORS + " sensors";
 
         Double usedWh = num(totals, "usedWh"), chargedWh = num(totals, "chargedWh"), regenWh = num(totals, "regenWh");
         used = StatusFormat.kwh(usedWh);
         charged = StatusFormat.kwh(chargedWh);
         regen = StatusFormat.kwh(regenWh);
+        regenReal = regenWh != null && regenWh > 0; // green only for energy regen really put back
         // cost is what the driving took: energy out of the pack less what regen put back, at the home (AC) rate
         String symbol = settings == null ? "\u0e3f" : CURRENCY.getOrDefault(settings.optString("currency"), "\u0e3f");
         Double rate = homeRate(settings);

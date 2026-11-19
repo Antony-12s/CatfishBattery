@@ -173,7 +173,7 @@ final class StatusPage extends FrameLayout {
         used = fact(context, energyGroup, "Used", since);
         charged = fact(context, energyGroup, "Charged", note(context, "charger \u2192 pack"));
         regen = fact(context, energyGroup, "Regen", note(context, "braking energy"));
-        regen.setTextColor(s.good);
+        regen.setTextColor(s.text); // green only once real regen is recorded (draw)
         costNote = note(context, "set prices in Settings");
         cost = fact(context, energyGroup, "Cost", costNote);
         facts.addView(cellGroup, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 3));
@@ -237,6 +237,7 @@ final class StatusPage extends FrameLayout {
         set(used, x.used);
         set(charged, x.charged);
         set(regen, x.regen);
+        regen.setTextColor(x.regenReal ? s.good : s.text);
         set(cost, x.cost);
         set(costNote, x.costNote);
         set(since, x.since);

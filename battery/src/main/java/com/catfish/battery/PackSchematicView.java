@@ -43,12 +43,22 @@ final class PackSchematicView extends View {
     private final List<DrawableSensor> sensors = new ArrayList<>();
     private final Path[] flows = new Path[FLOW_KEYS.length];
     private final float[][] flowPaths = new float[FLOW_KEYS.length][];
-    private final Path sparkLine = new Path(), sparkArea = new Path();
+    private final Path sparkLine = new Path(), sparkArea = new Path(), swipeClip = new Path();
     private float sparkEndX, sparkEndY;
     private SocTrend trend;
-    private final Point front = iso(-1,170,20);
+    // glass pack (2026-11-19): soft floor reflection under the tray
+    private final Shader floorGlow = new RadialGradient(0,0,1,new int[]{0x45000000,0x21000000,0},
+            new float[]{0,.55f,1},Shader.TileMode.CLAMP);
+    private final Point floor = iso(185,175,0);
+    // swipe card above Loads: Range, Pack power, Extremes
+    private static final String[] PAGES = {"Range","Pack power","Extremes"};
+    private final SwipePager pager = new SwipePager(PAGES.length,SWIPE_R-SWIPE_L,ValueAnimator.areAnimatorsEnabled());
+    private boolean swiping;
     private final Path busPositive = line(iso(54,87,45),iso(360,87,45));
     private final Path busNegative = line(iso(54,92,45),iso(360,92,45));
+    // lit back edges of the BMS lid (its top face corners a, b, c: box(0,0,0,12,54,180,42))
+    private final Path bmsGlint = polyline(new float[]{iso(0,0,54).x(),iso(0,0,54).y(),iso(54,0,54).x(),iso(54,0,54).y(),
+            iso(54,180,54).x(),iso(54,180,54).y()});
     private SchematicData data = new SchematicData(null);
     // cell lift (CellMotion): targets are rebuilt in setData/setNight, never in onDraw
     private final CellMotion motion = new CellMotion(118, ValueAnimator.areAnimatorsEnabled());
@@ -66,6 +76,9 @@ final class PackSchematicView extends View {
         gradient.setScale(WIDTH/2f,HEIGHT*.55f);
         gradient.postTranslate(LEFT+WIDTH/2f,HEIGHT*.45f);
         nightPanel.setLocalMatrix(gradient);
+        Matrix glow = new Matrix();
+        glow.setScale(232,24);
+        floorGlow.setLocalMatrix(glow);
         for (Box box : solids()) {
             DrawableBox drawable = new DrawableBox(box);
             solids.add(drawable);
@@ -108,13 +121,27 @@ final class PackSchematicView extends View {
         round(canvas,LEFT,0,LEFT+WIDTH,HEIGHT,12,palette.bgDeep,0);
         paint.setShader(null);
         round(canvas,LEFT,0,LEFT+WIDTH,HEIGHT,12,0,tone(0x14e2c08d,palette.line));
+        pager.step(now);
         drawSystem(canvas);
-        drawBox(canvas,base,tone(0xff26323f,0xffd6e2ed),tone(0xff141a24,0xffb7c8d9),
-                tone(0xff0d1119,0xffa5b8cb),tone(0xff51627d,0xff829bb3),.5f);
+        drawSwipeCard(canvas);
+        // glass pack: floor reflection, tray and BMS framed like the cards, translucent cells with a rim
+        int edge = tone(0x66e2c08d,0xff9fb2c6), glint = tone(0xfff4efe7,0xffffffff);
+        canvas.save();
+        canvas.translate(floor.x(),floor.y()+12);
+        canvas.rotate(-29);
+        paint.setShader(floorGlow);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setAlpha(palette.night ? 255 : 120);
+        canvas.drawOval(-232,-24,232,24,paint);
+        paint.setShader(null);
+        canvas.restore();
+        int tray = tone(0xff141a24,0xffb7c8d9);
+        drawBox(canvas,base,tray,tone(0xff06101a,0xff8599af),shade(tray,.65f),edge,.85f);
         for (DrawableBox box : solids) {
             if (box.geometry.cell() == 0) {
                 drawBox(canvas,box,tone(0xff2a3446,0xffe7eff7),tone(0xff191f2b,0xffbbccdc),
-                        tone(0xff111621,0xffa9bdd2),tone(0xff3c4c66,0xff879fb6),.5f);
+                        tone(0xff111621,0xffa9bdd2),edge,.85f);
+                stroke(canvas,bmsGlint,(glint & 0xffffff) | 0x77000000,.85f);
             } else {
                 int i = box.geometry.cell()-1;
                 boolean waiting = data.cellBands[i] == SchematicReadings.Band.WAIT && !palette.night;
@@ -126,15 +153,24 @@ final class PackSchematicView extends View {
                 }
                 canvas.save();
                 canvas.translate(0,-lift*1.25f); // iso(): one unit of height is 1.25 design px up
-                drawBox(canvas,box,color,shade(color,waiting ? .87f : .6f),
-                        shade(color,waiting ? .78f : .4f),0x2e000000,.4f);
+                boolean calm = waiting || data.cellBands[i] == SchematicReadings.Band.GOOD
+                        || data.cellBands[i] == SchematicReadings.Band.WAIT;
+                fill(shade(color,.72f));
+                paint.setAlpha(153);
+                canvas.drawPath(box.paths[0],paint);
+                fill(shade(color,.54f));
+                paint.setAlpha(199);
+                canvas.drawPath(box.paths[1],paint);
+                fill(color);
+                paint.setAlpha(calm ? 170 : 240);
+                canvas.drawPath(box.paths[2],paint);
+                stroke(canvas,box.paths[2],calm ? (glint & 0xffffff) | 0x55000000 : color,.55f);
                 canvas.restore();
             }
         }
-        int wire = tone(0xff06101a,0xff8599af);
-        stroke(canvas,busPositive,wire,7);
+        stroke(canvas,busPositive,edge,7);
         stroke(canvas,busPositive,0xfff2616b,4);
-        stroke(canvas,busNegative,wire,7);
+        stroke(canvas,busNegative,edge,7);
         stroke(canvas,busNegative,tone(0xff2a3142,0xff3e5062),4);
         for (DrawableSensor drawable : sensors) {
             Sensor sensor = drawable.sensor;
@@ -143,17 +179,12 @@ final class PackSchematicView extends View {
                 circle(canvas,sensor.anchor(),8,sensor.color(),sensor.outline(),1.5f);
             }
         }
-        label(canvas,"BMS",-62,24,14,kicker(),MONO,Paint.Align.LEFT);
-        label(canvas,"SYSTEM",-62,42,14,kicker(),MONO,Paint.Align.LEFT);
-        label(canvas,"HV BUS",-62,88,14,kicker(),MONO,Paint.Align.LEFT);
-        label(canvas,"DC CHARGE",-62,164,14,kicker(),MONO,Paint.Align.LEFT);
-        label(canvas,"COOLANT",-62,240,14,kicker(),MONO,Paint.Align.LEFT);
+        drawLegendGroups(canvas);
         for (DrawableSensor sensor : sensors) drawSensor(canvas,sensor);
-        label(canvas,"FRONT",front.x(),front.y(),12,tone(0xff8fb0e0,0xff274e78),MONO,Paint.Align.CENTER);
         drawSelection(canvas,now);
         drawTooltip(canvas);
         canvas.restore();
-        if (motion.moving() || motion.hovering()) postInvalidateOnAnimation();
+        if (motion.moving() || motion.hovering() || pager.moving() || pager.dragging()) postInvalidateOnAnimation();
     }
 
     /** New lift and colour targets from the current readings; the ripple starts at the most deviating cell. */
@@ -188,14 +219,14 @@ final class PackSchematicView extends View {
         postInvalidateOnAnimation();
     }
 
-    // Staircase layout around the pack's diamond (design units, see SchematicGeometry.flowPath for the wires):
-    // step 1 the wide HV PACK card above the pack's rising edge, step 2 the Loads/Charging card right of the apex with
-    // the inlet on its left, step 3 DC-DC and 12 V side by side under the falling edge.
-    private static final float HERO_L = 790, HERO_T = 6, HERO_B = 108, RIGHT = 1280;
-    private static final float LOADS_L = 930, LOADS_T = 142, LOADS_B = 310;
-    private static final float INLET_L = 766, INLET_R = 900, INLET_T = 250, INLET_B = 298;
-    private static final float LOW_T = 350, LOW_B = 434, DC_L = 607, DC_R = 903, LV_L = 983;
-    private static final float SPARK_L = 1084, SPARK_R = 1266, SPARK_T = 38, SPARK_B = 84;
+    // Layout 2026-11-19 (design units, wires in SchematicGeometry.flowPath): HV pack card + SOC graph top-left with the
+    // sensor legend under it; swipe card, Loads, and 12 V on the right sharing one left edge; DC-DC under the pack.
+    private static final float HERO_L = -92, HERO_T = 6, HERO_R = 390, HERO_B = 127, RIGHT = 1278;
+    private static final float SWIPE_L = 884, SWIPE_T = 8, SWIPE_R = RIGHT, SWIPE_B = 100, DOTS_Y = 108;
+    private static final float LOADS_L = 884, LOADS_T = 120, LOADS_B = 340;
+    private static final float INLET_L = 696, INLET_R = 856, INLET_T = 274, INLET_B = 322;
+    private static final float LOW_T = 351, LOW_B = 452, DC_L = 574, DC_R = 856, LV_L = 884;
+    private static final float SPARK_L = HERO_L + 277, SPARK_R = HERO_R - 16, SPARK_T = HERO_T + 46, SPARK_B = HERO_B - 26;
 
     void setTrend(SocTrend trend) {
         this.trend = trend;
@@ -220,66 +251,172 @@ final class PackSchematicView extends View {
             circle(canvas,new Point(xy[xy.length-2],xy[xy.length-1]),4,port,0,0);
         }
 
-        // step 1: HV PACK card
-        node(canvas,HERO_L,HERO_T,RIGHT,HERO_B);
-        float x0 = HERO_L + 16;
-        label(canvas,data.kicker,x0,26,14,tone(CHAMPAGNE,kicker()),MONO,Paint.Align.LEFT);
+        // HV pack card: SOC, SOH, power line, SOC graph
+        node(canvas,HERO_L,HERO_T,HERO_R,HERO_B);
+        float hx = HERO_L + 16;
+        title(canvas,"HV pack",hx,HERO_T+25);
+        label(canvas,"400 V",hx+82,HERO_T+25,13,muted(),NORMAL,Paint.Align.LEFT);
         Typeface socFont = palette.night ? LIGHT : BOLD;
-        label(canvas,data.soc,x0,74,46,ink(),socFont,Paint.Align.LEFT);
-        float sep = x0 + measure("100.0%",46,socFont) + 16;
-        round(canvas,sep,40,sep+1.5f,78,0,tone(0x40e2c08d,palette.line),0);
-        float sohX = sep + 16;
-        label(canvas,"SOH",sohX,48,13,kicker(),MONO,Paint.Align.LEFT);
-        if (data.sohReading) spinner(canvas,sohX+12,64,11);
-        else label(canvas,data.soh,sohX,74,24,ink(),BOLD,Paint.Align.LEFT);
-        label(canvas,data.powerLine,x0,99,16,data.powerIn ? palette.good : tone(CHAMPAGNE,ink()),BOLD,Paint.Align.LEFT);
+        label(canvas,data.soc,hx,HERO_T+82,46,ink(),socFont,Paint.Align.LEFT);
+        float sep = hx + 150;
+        round(canvas,sep,HERO_T+44,sep+1.5f,HERO_T+84,0,tone(0x40e2c08d,palette.line),0);
+        label(canvas,"SOH",sep+12,HERO_T+52,12,kicker(),MONO,Paint.Align.LEFT);
+        if (data.sohReading) spinner(canvas,sep+24,HERO_T+70,11);
+        else label(canvas,data.soh,sep+12,HERO_T+82,22,ink(),BOLD,Paint.Align.LEFT);
+        label(canvas,data.powerLine,hx,HERO_B-13,15,data.powerIn ? palette.good : tone(CHAMPAGNE,ink()),BOLD,Paint.Align.LEFT);
+        round(canvas,SPARK_L-12,HERO_T+14,SPARK_L-11,HERO_B-14,0,tone(0x21e2c08d,palette.line),0);
         drawTrend(canvas,flowColor);
 
-        // step 2: Loads, or the charge in progress
+        // Loads, or the charge in progress
         node(canvas,LOADS_L,LOADS_T,RIGHT,LOADS_B,data.charging ? palette.good : v2l ? inletColor : 0);
-        float lx = LOADS_L + 14, rx = RIGHT - 14;
+        float lx = LOADS_L + 16, rx = RIGHT - 16;
         if (data.charging) {
-            label(canvas,data.chargeTitle,lx,LOADS_T+24,19,palette.good,BOLD,Paint.Align.LEFT);
-            label(canvas,data.chargeEta,rx,LOADS_T+24,15,palette.good,BOLD,Paint.Align.RIGHT);
-            row(canvas,"SOC",data.socTarget,LOADS_T+50,data.socProgress,palette.good);
-            row(canvas,"Added",data.chargeAdded,LOADS_T+78,-1,0);
-            row(canvas,LOAD_NAMES[1],data.loadPower[1],LOADS_T+106,data.shares[1],active);
-            row(canvas,LOAD_NAMES[2],data.loadPower[2],LOADS_T+134,data.shares[2],active);
+            label(canvas,data.chargeTitle,lx,LOADS_T+27,18,palette.good,BOLD,Paint.Align.LEFT);
+            if (!data.chargeEta.isEmpty()) pill(canvas,data.chargeEta,rx,LOADS_T+26,palette.good,true);
+            row(canvas,"SOC",data.socTarget,LOADS_T+62,data.socProgress,palette.good);
+            row(canvas,"Added",data.chargeAdded,LOADS_T+103,-1,0);
+            row(canvas,LOAD_NAMES[1],data.loadPower[1],LOADS_T+144,data.shares[1],active);
+            row(canvas,LOAD_NAMES[2],data.loadPower[2],LOADS_T+185,data.shares[2],active);
         } else {
-            if (v2l) label(canvas,data.loadsTitle,lx,LOADS_T+24,19,inletColor,BOLD,Paint.Align.LEFT);
-            else title(canvas,data.loadsTitle,lx,LOADS_T+24);
+            if (v2l) label(canvas,data.loadsTitle,lx,LOADS_T+27,18,inletColor,BOLD,Paint.Align.LEFT);
+            else {
+                title(canvas,"Loads",lx,LOADS_T+27);
+                pill(canvas,data.loadsTitle,rx,LOADS_T+26,data.hvOn ? active : muted(),data.hvOn);
+            }
             for (int i = 0; i < LOAD_NAMES.length; i++) {
-                row(canvas,LOAD_NAMES[i],data.loadPower[i],LOADS_T+50+i*28,data.shares[i],active);
+                row(canvas,LOAD_NAMES[i],data.loadPower[i],LOADS_T+62+i*41,data.shares[i],active);
             }
         }
         if (inletOn) drawInlet(canvas,inletColor,data.inlet == SchematicReadings.INLET_DC);
 
-        // step 3: DC-DC and the 12 V battery side by side
+        // DC-DC and the 12 V battery
         node(canvas,DC_L,LOW_T,DC_R,LOW_B);
-        title(canvas,"DC-DC",DC_L+14,LOW_T+24);
-        round(canvas,DC_R-66,LOW_T+8,DC_R-14,LOW_T+30,11,
-                data.dcOn ? tone(0x294fe09a,0xffe1f4e9) : nodeColor(),data.dcOn ? palette.good : dim);
-        label(canvas,data.dcState,DC_R-40,LOW_T+23.5f,13,data.dcOn ? palette.good : muted(),BOLD,Paint.Align.CENTER);
-        readLabel(canvas,"HV side",DC_L+14,LOW_T+50,muted());
-        value(canvas,data.dcHigh,DC_R-14,LOW_T+50);
-        readLabel(canvas,"12 V",DC_L+14,LOW_T+74,muted());
-        value(canvas,data.dcLow,DC_R-14,LOW_T+74);
+        title(canvas,"DC-DC",DC_L+16,LOW_T+27);
+        pill(canvas,data.dcState,DC_R-16,LOW_T+26,data.dcOn ? palette.good : muted(),data.dcOn);
+        readLabel(canvas,"HV side",DC_L+16,LOW_T+58,muted());
+        value(canvas,data.dcHigh,DC_R-16,LOW_T+58);
+        readLabel(canvas,"12 V",DC_L+16,LOW_T+84,muted());
+        value(canvas,data.dcLow,DC_R-16,LOW_T+84);
         node(canvas,LV_L,LOW_T,RIGHT,LOW_B);
-        title(canvas,"12 V battery",LV_L+14,LOW_T+24);
-        value(canvas,data.lvSoc,RIGHT-14,LOW_T+24);
-        readLabel(canvas,"Voltage",LV_L+14,LOW_T+50,muted());
-        label(canvas,data.lvVoltage,RIGHT-14,LOW_T+50,18,bandInk(data.lvBand,ink()),BOLD,Paint.Align.RIGHT);
-        readLabel(canvas,"State",LV_L+14,LOW_T+74,muted());
-        value(canvas,data.lvState,RIGHT-14,LOW_T+74);
+        title(canvas,"12 V battery",LV_L+16,LOW_T+27);
+        boolean lvCharging = "charging".equals(data.lvState);
+        if (!UiFormat.MISSING.equals(data.lvState)) pill(canvas,data.lvState,RIGHT-16,LOW_T+26,lvCharging ? palette.good : muted(),lvCharging);
+        readLabel(canvas,"Voltage",LV_L+16,LOW_T+58,muted());
+        label(canvas,data.lvVoltage,RIGHT-16,LOW_T+58,18,bandInk(data.lvBand,ink()),BOLD,Paint.Align.RIGHT);
+        readLabel(canvas,"SOC",LV_L+16,LOW_T+84,muted());
+        value(canvas,data.lvSoc,RIGHT-16,LOW_T+84);
     }
+
+    /** A state pill ending at {@code right}, text baseline {@code y}; filled tints it with {@code color}. */
+    private void pill(Canvas c,String text,float right,float y,int color,boolean filled) {
+        if (text == null || text.isEmpty()) return;
+        float w = measure(text,13,BOLD) + 22;
+        round(c,right-w,y-17,right,y+6,11.5f,filled ? (color & 0xffffff) | tone(0x24000000,0x1c000000) : tone(0xff15151a,0xfff0f5fa),
+                filled ? color : tone(0x38e2c08d,palette.line));
+        label(c,text,right-w/2,y-1,13,color,BOLD,Paint.Align.CENTER);
+    }
+
+    /** Swipe card above Loads: three pages on one strip, clipped to the card; dots under it show the page. */
+    private void drawSwipeCard(Canvas c) {
+        float w = SWIPE_R - SWIPE_L, offset = pager.offset();
+        c.save();
+        swipeClip.rewind();
+        swipeClip.addRoundRect(SWIPE_L,SWIPE_T-2,SWIPE_R,SWIPE_B+2,14,14,Path.Direction.CW);
+        c.clipPath(swipeClip);
+        for (int i = 0; i < PAGES.length; i++) {
+            float dx = i * w + offset;
+            if (dx <= -w || dx >= w) continue;
+            c.save();
+            c.translate(dx,0);
+            node(c,SWIPE_L,SWIPE_T,SWIPE_R,SWIPE_B);
+            title(c,PAGES[i],SWIPE_L+16,SWIPE_T+27);
+            if (i == 0) drawRangePage(c);
+            else if (i == 1) drawPowerPage(c);
+            else drawExtremesPage(c);
+            c.restore();
+        }
+        c.restore();
+        float at = -offset / w, mid = (SWIPE_L + SWIPE_R) / 2;
+        for (int i = 0; i < PAGES.length; i++) {
+            float k = Math.max(0,1 - Math.abs(at - i));
+            fill(k > .5f ? tone(CHAMPAGNE,palette.accent) : muted());
+            paint.setAlpha((int) (255 * (.35f + .65f * k)));
+            c.drawCircle(mid + (i - (PAGES.length - 1) / 2f) * 14,DOTS_Y,2.6f + 1.2f * k,paint);
+        }
+    }
+
+    private void drawRangePage(Canvas c) {
+        float l = SWIPE_L, t = SWIPE_T, r = SWIPE_R, b = SWIPE_B;
+        Typeface big = palette.night ? LIGHT : BOLD;
+        label(c,data.rangeKm,l+16,b-14,38,ink(),big,Paint.Align.LEFT);
+        label(c,"km",l+22+measure(data.rangeKm,38,big),b-15,16,muted(),NORMAL,Paint.Align.LEFT);
+        float sx = l + 190;
+        round(c,sx-14,t+44,sx-12.5f,b-10,0,tone(0x21e2c08d,palette.line),0);
+        label(c,"Energy left",sx,t+56,13,muted(),NORMAL,Paint.Align.LEFT);
+        value(c,data.energyLeft,r-16,t+56);
+        round(c,sx,b-26,r-16,b-22,2,track(),0);
+        if (Double.isFinite(data.energyShare)) {
+            round(c,sx,b-26,sx+(r-16-sx)*(float) Math.min(1,data.energyShare),b-22,2,tone(CHAMPAGNE,palette.accent),0);
+        }
+        label(c,"Usable at this SOC",sx,b-8,12,muted(),NORMAL,Paint.Align.LEFT);
+    }
+
+    private void drawPowerPage(Canvas c) {
+        float l = SWIPE_L, r = SWIPE_R, b = SWIPE_B, t = SWIPE_T;
+        int champagne = tone(CHAMPAGNE,palette.accent);
+        String state = data.powerState;
+        boolean green = "Charging".equals(state) || "Regen".equals(state);
+        pill(c,state,r-16,t+26,green ? palette.good : "In use".equals(state) ? champagne : muted(),green || "In use".equals(state));
+        Typeface big = palette.night ? LIGHT : BOLD;
+        boolean in = data.packKw <= -.05;
+        label(c,data.packKwText,l+16,b-14,30,in ? palette.good : ink(),big,Paint.Align.LEFT);
+        label(c,"kW",l+22+measure(data.packKwText,30,big),b-15,15,muted(),NORMAL,Paint.Align.LEFT);
+        // one bar: 50 kW back into the pack on the left third, 100 kW out on the right
+        float bl = l + 150, br = r - 16, zero = bl + (br - bl) / 3, y = b - 26;
+        round(c,bl,y-3,br,y+3,3,track(),0);
+        if (Double.isFinite(data.packKw) && Math.abs(data.packKw) >= .05) {
+            float x = data.packKw > 0 ? zero + (br - zero) * (float) Math.min(1,data.packKw / 100)
+                    : zero - (zero - bl) * (float) Math.min(1,-data.packKw / 50);
+            round(c,Math.min(x,zero),y-3,Math.max(x,zero),y+3,3,data.packKw > 0 ? champagne : palette.good,0);
+        }
+        round(c,zero-.75f,y-8,zero+.75f,y+8,0,muted(),0);
+        label(c,data.charging ? "Into pack" : "Regen",bl,y-10,11.5f,muted(),NORMAL,Paint.Align.LEFT);
+        label(c,"Drive",br,y-10,11.5f,muted(),NORMAL,Paint.Align.RIGHT);
+        label(c,"50",bl,y+18,11,muted(),NORMAL,Paint.Align.LEFT);
+        label(c,"0",zero,y+18,11,muted(),NORMAL,Paint.Align.CENTER);
+        label(c,"100",br,y+18,11,muted(),NORMAL,Paint.Align.RIGHT);
+    }
+
+    private void drawExtremesPage(Canvas c) {
+        float l = SWIPE_L, t = SWIPE_T, col = (SWIPE_R - SWIPE_L - 32) / 3;
+        int hot = data.hotSensor, cool = data.coolSensor;
+        extreme(c,l+16,"\u25b2 Highest cell",data.highCellV,data.highCell == 0 ? "cell --" : "cell #" + data.highCell,ink());
+        extreme(c,l+16+col,"\u25b2 Hottest",hot == 0 ? UiFormat.MISSING : data.sensorReadings[hot-1] + "C",
+                hot == 0 ? "sensor --" : "S" + hot + " \u00b7 " + sensorName(hot),hot == 0 ? ink() : bandInk(data.sensorBands[hot-1],ink()));
+        extreme(c,l+16+2*col,"\u25bc Coolest",cool == 0 ? UiFormat.MISSING : data.sensorReadings[cool-1] + "C",
+                cool == 0 ? "sensor --" : "S" + cool + " \u00b7 " + sensorName(cool),ink());
+    }
+
+    private void extreme(Canvas c,float x,String head,String main,String sub,int color) {
+        label(c,head,x,SWIPE_T+47,12,muted(),NORMAL,Paint.Align.LEFT);
+        label(c,main,x,SWIPE_T+68,18,color,BOLD,Paint.Align.LEFT);
+        label(c,sub,x,SWIPE_T+85,12,muted(),NORMAL,Paint.Align.LEFT);
+    }
+
+    private String sensorName(int number) {
+        for (DrawableSensor d : sensors) if (d.sensor.number() == number) return d.sensor.name();
+        return "";
+    }
+
+    private int track() { return tone(0x1fe2c08d,0xffdce6f0); }
 
     /** The plug badge left of the Loads card: AC Type 2 or CCS2 icon with its power; green in, blue out (V2L). */
     private void drawInlet(Canvas c,int color,boolean ccs2) {
-        round(c,INLET_L,INLET_T,INLET_R,INLET_B,14,(color & 0x00ffffff) | 0x22000000,color);
-        float cx = INLET_L + 24, cy = (INLET_T + INLET_B) / 2f;
+        round(c,INLET_L,INLET_T,INLET_R,INLET_B,12,(color & 0x00ffffff) | 0x1c000000,color);
+        float cx = INLET_L + 23, cy = (INLET_T + INLET_B) / 2f;
         c.save();
         c.translate(cx,cy);
-        float k = ccs2 ? .58f : .66f;
+        float k = .58f;
         c.scale(k,k);
         c.translate(-30,ccs2 ? -34 : -32);
         outline(color,3);
@@ -288,8 +425,8 @@ final class PackSchematicView extends View {
         float[][] pins = ccs2 ? CCS2_PINS : TYPE2_PINS;
         for (float[] p : pins) c.drawCircle(p[0],p[1],p[2],paint);
         c.restore();
-        label(c,data.inletName,INLET_L+50,cy-3,15,color,BOLD,Paint.Align.LEFT);
-        label(c,data.inletValue,INLET_L+50,cy+15,13,color,NORMAL,Paint.Align.LEFT);
+        label(c,data.inletName,INLET_L+45,cy-4,14,color,BOLD,Paint.Align.LEFT);
+        label(c,data.inletValue,INLET_L+45,cy+14,12,color,NORMAL,Paint.Align.LEFT);
     }
 
     // connector faces in a 60-unit box: Type 2 (flat top, 7 pins); CCS2 (Type 2 signal half over two DC pins)
@@ -310,23 +447,23 @@ final class PackSchematicView extends View {
 
     /** One card row: label left, value right, an optional share bar underneath (share < 0: no bar). */
     private void row(Canvas c,String name,String reading,float y,double share,int barColor) {
-        readLabel(c,name,LOADS_L+14,y,muted());
-        value(c,reading,RIGHT-14,y);
+        label(c,name,LOADS_L+16,y,15,muted(),NORMAL,Paint.Align.LEFT);
+        value(c,reading,RIGHT-16,y);
         if (share < 0) return;
-        round(c,LOADS_L+14,y+6,RIGHT-14,y+9,1.5f,tone(0x1fe2c08d,0xffdce6f0),0);
-        float w = (RIGHT-LOADS_L-28) * (float) Math.max(0,Math.min(1,share));
-        if (w > 0) round(c,LOADS_L+14,y+6,LOADS_L+14+w,y+9,1.5f,barColor,0);
+        round(c,LOADS_L+16,y+8,RIGHT-16,y+12,2,track(),0);
+        float w = (RIGHT-LOADS_L-32) * (float) Math.max(0,Math.min(1,share));
+        if (w > 0) round(c,LOADS_L+16,y+8,LOADS_L+16+w,y+12,2,barColor,0);
     }
 
     /** The SOC sparkline in the HV PACK card; its window follows the car's state (SocTrend). */
     private void drawTrend(Canvas c,int color) {
         SocTrend t = trend;
-        label(c,t == null ? "SOC" : t.label,SPARK_L,26,12,kicker(),MONO,Paint.Align.LEFT);
+        label(c,t == null ? "SOC" : t.label,SPARK_L,HERO_T+25,12,kicker(),MONO,Paint.Align.LEFT);
         if (t == null || t.empty()) {
             label(c,"collecting data",(SPARK_L+SPARK_R)/2,(SPARK_T+SPARK_B)/2+5,13,muted(),NORMAL,Paint.Align.CENTER);
             return;
         }
-        label(c,t.delta,SPARK_R,26,13,ink(),BOLD,Paint.Align.RIGHT);
+        label(c,t.delta,SPARK_R,HERO_T+25,13,ink(),BOLD,Paint.Align.RIGHT);
         float span = Math.max(1,t.toMs - t.fromMs), range = (float) Math.max(1e-6,t.hi - t.lo);
         sparkLine.rewind();
         for (int i = 0; i < t.soc.length; i++) {
@@ -358,6 +495,19 @@ final class PackSchematicView extends View {
         label(c,"now",SPARK_R,SPARK_B+16,11,muted(),NORMAL,Paint.Align.RIGHT);
     }
 
+    /** Group headers of the sensor legend with a bar beside each group's rows (LEGEND_HEADER_Y in the geometry). */
+    private void drawLegendGroups(Canvas canvas) {
+        int[] rowsPerGroup = {1,2,2,2};
+        int color = tone(CHAMPAGNE,kicker());
+        paint.setLetterSpacing(1/12f);
+        for (int g = 0; g < LEGEND_GROUPS.length; g++) {
+            float header = LEGEND_HEADER_Y[g], last = header + 22 + (rowsPerGroup[g]-1) * 26;
+            label(canvas,LEGEND_GROUPS[g],LEGEND_X,header,12,color,MONO,Paint.Align.LEFT);
+            round(canvas,LEGEND_X-12,header-11,LEGEND_X-9,last+9,1.5f,(tone(CHAMPAGNE,0xff9fb2c6) & 0xffffff) | 0x8c000000,0);
+        }
+        paint.setLetterSpacing(0);
+    }
+
     private void drawSensor(Canvas canvas, DrawableSensor drawable) {
         Sensor sensor = drawable.sensor;
         Point at = sensor.labelAt();
@@ -367,17 +517,16 @@ final class PackSchematicView extends View {
         String reading = data.sensorReadings[index];
         int readingColor = bandInk(data.sensorBands[index],ink());
         if (sensor.tag()) {
+            float nameWidth = measure(sensor.label(),12,NORMAL), width = nameWidth + 6 + measure(reading,14,BOLD) + 20;
             RectF r = drawable.labelBounds;
-            round(canvas,r.left,r.top,r.right,r.bottom,7,
-                    tone(0xd9080c14,0xf2ffffff),tone(0x59a0afc8,palette.line));
-            float nameWidth = measure(sensor.label(),12,NORMAL);
-            float start = at.x()-(nameWidth+5+measure(reading,14,BOLD))/2;
-            label(canvas,sensor.label(),start,at.y()+5,12,muted(),NORMAL,Paint.Align.LEFT);
-            label(canvas,reading,start+nameWidth+5,at.y()+5,14,readingColor,BOLD,Paint.Align.LEFT);
+            r.set(at.x()-width/2,at.y()-12,at.x()+width/2,at.y()+12);
+            round(canvas,r.left,r.top,r.right,r.bottom,7,tone(0xd9080c14,0xf2ffffff),tone(0x59a0afc8,palette.line));
+            label(canvas,sensor.label(),r.left+10,at.y()+5,12,muted(),NORMAL,Paint.Align.LEFT);
+            label(canvas,reading,r.left+16+nameWidth,at.y()+5,14,readingColor,BOLD,Paint.Align.LEFT);
         } else {
-            circle(canvas,at,5,sensor.color(),sensor.outline(),1);
-            readLabel(canvas,sensor.label(),-44,at.y()+6,muted());
-            label(canvas,reading,54,at.y()+6.5f,18,readingColor,BOLD,Paint.Align.RIGHT);
+            circle(canvas,new Point(at.x()+5,at.y()-5),5,sensor.color(),sensor.outline(),1);
+            label(canvas,sensor.label(),at.x()+17,at.y(),16,muted(),NORMAL,Paint.Align.LEFT);
+            label(canvas,reading,LEGEND_VALUE_X,at.y(),17,readingColor,BOLD,Paint.Align.RIGHT);
         }
     }
 
@@ -409,10 +558,43 @@ final class PackSchematicView extends View {
             case MotionEvent.ACTION_DOWN -> {
                 downX = event.getX();
                 downY = event.getY();
+                Fit fit = fit(getWidth(),getHeight());
+                float x = fit.designX(downX), y = fit.designY(downY);
+                swiping = fit.scale() > 0 && x >= SWIPE_L && x <= SWIPE_R && y >= SWIPE_T && y <= SWIPE_B;
+                if (swiping) pager.down(x,event.getEventTime());
+                return true;
+            }
+            case MotionEvent.ACTION_MOVE -> {
+                if (!swiping) return true;
+                Fit fit = fit(getWidth(),getHeight());
+                pager.move(fit.designX(event.getX()),event.getEventTime());
+                int slop = android.view.ViewConfiguration.get(getContext()).getScaledTouchSlop();
+                if (Math.abs(event.getX()-downX) > slop && getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
+                postInvalidateOnAnimation();
+                return true;
+            }
+            case MotionEvent.ACTION_CANCEL -> {
+                if (swiping) {
+                    swiping = false;
+                    pager.up(fit(getWidth(),getHeight()).designX(downX),event.getEventTime()); // springs back
+                    postInvalidateOnAnimation();
+                }
                 return true;
             }
             case MotionEvent.ACTION_UP -> {
                 Fit fit = fit(getWidth(),getHeight());
+                if (swiping) {
+                    swiping = false;
+                    pager.up(fit.designX(event.getX()),event.getEventTime());
+                    postInvalidateOnAnimation();
+                    return true;
+                }
+                float tapX = fit.designX(event.getX()), tapY = fit.designY(event.getY());
+                if (fit.scale() > 0 && Math.abs(tapY-DOTS_Y) <= 10 && Math.abs(tapX-(SWIPE_L+SWIPE_R)/2) <= 30) {
+                    pager.go(Math.round((tapX-(SWIPE_L+SWIPE_R)/2)/14) + (PAGES.length-1)/2,event.getEventTime());
+                    postInvalidateOnAnimation();
+                    return true;
+                }
                 int slop = android.view.ViewConfiguration.get(getContext()).getScaledTouchSlop();
                 if (fit.scale() > 0 && Math.hypot(event.getX()-downX,event.getY()-downY) <= slop) {
                     selected = target(fit.designX(event.getX()),fit.designY(event.getY()));
@@ -478,9 +660,9 @@ final class PackSchematicView extends View {
 
     /** A card; accent != 0 draws its border in that colour (the Loads card turns green while charging). */
     private void node(Canvas c,float l,float t,float r,float b,int accent) {
-        round(c,l,t,r,b,8,nodeColor(),accent != 0 ? accent : tone(0x38e2c08d,palette.line));
+        round(c,l,t,r,b,14,nodeColor(),accent != 0 ? accent : tone(0x38e2c08d,palette.line));
     }
-    private void title(Canvas c,String s,float x,float y) { label(c,s,x,y,20,tone(0xfff4efe7,ink()),BOLD,Paint.Align.LEFT); }
+    private void title(Canvas c,String s,float x,float y) { label(c,s,x,y,18,tone(0xfff4efe7,ink()),BOLD,Paint.Align.LEFT); }
     private void value(Canvas c,String s,float x,float y) { label(c,s,x,y,18,ink(),BOLD,Paint.Align.RIGHT); }
     private void readLabel(Canvas c,String s,float x,float y,int color) {
         label(c,s,x,y,17,color,NORMAL,Paint.Align.LEFT);
@@ -593,13 +775,12 @@ final class PackSchematicView extends View {
             this.sensor = sensor;
             Point a = sensor.anchor(), p = sensor.labelAt();
             if (sensor.tag()) {
-                float half = (sensor.label().length()*7.2f+48)/2;
-                labelBounds = new RectF(p.x()-half,p.y()-12,p.x()+half,p.y()+12);
-                lead = polyline(trace(p,new Point(a.x(),p.y()),a));
+                float half = (sensor.label().length()*7.2f+48)/2, toward = Math.signum(p.y()-a.y());
+                labelBounds = new RectF(p.x()-half,p.y()-12,p.x()+half,p.y()+12); // resized to the text when drawn
+                lead = line(a,new Point(a.x(),p.y()-toward*12));
             } else {
-                labelBounds = new RectF(-62,p.y()-11,60,p.y()+11);
-                lead = polyline(trace(new Point(60,p.y()),new Point(sensor.lane(),p.y()),
-                        new Point(sensor.lane(),a.y()),a));
+                labelBounds = new RectF(LEGEND_X-12,p.y()-16,LEGEND_VALUE_X+4,p.y()+6);
+                lead = polyline(legendTrace(sensor));
             }
         }
     }
