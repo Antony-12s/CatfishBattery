@@ -342,20 +342,14 @@ final class SohRecorder {
     /** Any int VHAL property through CarPropertyManager.getIntProperty (read only), null when unavailable. */
     @android.annotation.SuppressLint("PrivateApi")
     static Supplier<Integer> carInt(android.content.Context context, int propertyId) {
-        Object[] manager = {null};
         return () -> {
+            Object manager = CarProps.manager(context);
+            if (manager == null) return null;
             try {
-                if (manager[0] == null) {
-                    Class<?> carClass = Class.forName("android.car.Car");
-                    Object car = carClass.getMethod("createCar", android.content.Context.class).invoke(null, context);
-                    if (car == null) return null;
-                    manager[0] = carClass.getMethod("getCarManager", String.class).invoke(car, "property");
-                }
-                return (Integer) manager[0].getClass().getMethod("getIntProperty", int.class, int.class)
-                        .invoke(manager[0], propertyId, 0);
+                return (Integer) manager.getClass().getMethod("getIntProperty", int.class, int.class)
+                        .invoke(manager, propertyId, 0);
             } catch (ReflectiveOperationException | RuntimeException e) {
-                manager[0] = null; // car service restarted or not ready: rebuild on the next tick
-                return null;
+                return null; // unavailable this tick; the shared connection stays
             }
         };
     }
@@ -367,24 +361,19 @@ final class SohRecorder {
      */
     @android.annotation.SuppressLint("PrivateApi")
     static java.util.concurrent.Callable<String> carRange(android.content.Context context) {
-        Object[] manager = {null};
         return () -> {
+            Object manager = CarProps.manager(context);
+            if (manager == null) return "";
             try {
-                if (manager[0] == null) {
-                    Class<?> carClass = Class.forName("android.car.Car");
-                    Object car = carClass.getMethod("createCar", android.content.Context.class).invoke(null, context);
-                    if (car == null) return "";
-                    manager[0] = carClass.getMethod("getCarManager", String.class).invoke(car, "property");
-                }
-                Object value = manager[0].getClass().getMethod("getProperty", Class.class, int.class, int.class)
-                        .invoke(manager[0], Float.class, 0x11600308, 0);
+                Object value = manager.getClass().getMethod("getProperty", Class.class, int.class, int.class)
+                        .invoke(manager, Float.class, 0x11600308, 0);
                 if (value == null) return "";
                 int status = (Integer) value.getClass().getMethod("getStatus").invoke(value);
                 Object km = value.getClass().getMethod("getValue").invoke(value);
                 return km instanceof Float f ? rangeText(status, f) : "";
             } catch (ReflectiveOperationException | RuntimeException e) {
-                manager[0] = null; // no permission yet or car service restarting: retry on the next tick
-                return "";
+                return ""; // no CAR_ENERGY grant yet or unavailable: retry on the next tick
+
             }
         };
     }

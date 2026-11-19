@@ -148,3 +148,18 @@ Do not resolve signer mismatches by uninstalling or clearing data.
   protobuf code. Only StartPropertyValuesStream and SendAllPropertyValuesToStream exist; the set-property call is not
   referenced at all. The protobuf plugin and the protobuf-lite / grpc-protobuf-lite / annotations dependencies are
   gone (APK 7.0 -> 6.3 MB). The whole repository is now Apache 2.0.
+
+## Platform check, read-only policy and event-driven Park guard (2026-11-19)
+- The vehicle is identified by the platform code in Build.PRODUCT / ro.build.product (e245 EX5, p145 EX5 EM-i,
+  e22 or p22 EX2), not by the model name or the APVP folder name (this e245 ships its APVP table as p145_j1).
+- UdsPolicy is the single gate for UDS: only 22 49 6D to the BECM (0x1635) on e245. ReadOnlyPolicyTest fails the
+  build if any other source sends UDS or names a vehicle-property write.
+- The BECM read's Park guard listens to GEAR_SELECTION and CURRENT_GEAR events instead of polling. Leaving Park, an
+  unknown value or an error event voids the read for good (generation token); the whole read has a 15 s budget.
+- One shared CarPropertyManager per process (CarProps); the old per-supplier code created a new Car after every
+  failed read.
+- In-app updates keep the loopback-adb path. The head unit's package verifier (com.ecarx.xsfinstallverifier) only
+  allows Geely-signed packages or the installers com.appmarket.automotive and com.faa.galaxy.appstore in its
+  production environment, so a PackageInstaller session from this app would be rejected. Verified on the car:
+  reinstalling the same 1.6.1 APK with the verifier on failed with INSTALL_FAILED_VERIFICATION_FAILURE
+  (reason installer_not_whitelist) and the car showed "installation blocked, App Store only".

@@ -14,21 +14,22 @@ import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Supplier;
+import java.util.function.LongSupplier;
 
 /**
  * The BECM's own SOH (UDS DID 0x496D) through Dxapp's VehicleDiagIF middleware, the same path as
  * battery/tools/becm-soh/ReadBecmDid.java. The user approved one automatic read per day when the app opens
- * (2026-11-18, see DECISIONS.md). Only in Park: both gear properties are re-read every 100 ms and the read aborts
- * as soon as a fresh read stops showing Park. One request (22 49 6D), mode 5, tester 0x0E80, and the channel is
- * always released. Never sends anything else.
+ * (2026-11-18, see DECISIONS.md). Only in Park: gear events from CarPropertyManager void the read the moment either
+ * gear leaves Park or turns unknown, and the whole read has a 15 s budget. One request (22 49 6D, enforced by
+ * UdsPolicy), mode 5, tester 0x0E80, and the channel is always released. Never sends anything else.
  */
 final class BecmSoh {
     static final int GEAR_SELECTION = 0x11400400, CURRENT_GEAR = 0x11400401, PARK = 4;
     private static final int MODE = 5;
     private static final char TESTER = 0x0E80;
-    private static final char BECM = 0x1635;
-    private static final byte[] REQUEST = {0x22, 0x49, 0x6D};
+    private static final char BECM = UdsPolicy.BECM;
+    private static final byte[] REQUEST = UdsPolicy.BECM_SOH;
+    private static final long READ_BUDGET_S = 15; // whole read: wait for Park, middleware, channel, reply
     private static final String SDK_APK = "/system/app/Dxapp/Dxapp.apk";
 
     private BecmSoh() { }
@@ -47,58 +48,112 @@ final class BecmSoh {
         return Instant.ofEpochMilli(aMs).atZone(zone).toLocalDate().equals(Instant.ofEpochMilli(bMs).atZone(zone).toLocalDate());
     }
 
-    /** Both gear properties must read Park on a fresh read; anything else (other gear, null, error) is unsafe. */
+    /**
+     * Park from gear events, the way the car reports them: both GEAR_SELECTION and CURRENT_GEAR must be Park.
+     * Any step out of Park, an unknown value or an error event bumps the generation, so a token taken in Park stays
+     * void even if the car comes back to Park. Every token also expires with the read's deadline.
+     */
     static final class ParkGuard implements AutoCloseable {
-        private static final long MAX_AGE_NS = TimeUnit.MILLISECONDS.toNanos(1500);
-        private volatile long parkedAt;
-        private volatile String last = "no read yet";
-        private volatile boolean running = true;
-        private final Thread poller;
+        private final LongSupplier clock;
+        private final long deadline;
+        private Integer selection, current;
+        private boolean seenSelection, seenCurrent, parked;
+        private int generation;
+        Runnable closer = () -> { };
 
-        ParkGuard(Supplier<Integer> selection, Supplier<Integer> current) {
-            poller = new Thread(() -> {
-                while (running) {
-                    Integer s = selection.get(), c = current.get();
-                    last = "selection=" + s + " current=" + c;
-                    parkedAt = s != null && s == PARK && c != null && c == PARK ? System.nanoTime() : 0;
-                    try { Thread.sleep(100); } catch (InterruptedException e) { return; }
-                }
-            }, "CFBecmParkGuard");
-            poller.setDaemon(true);
-            poller.start();
+        ParkGuard(LongSupplier clock, long budgetNs) {
+            this.clock = clock;
+            this.deadline = clock.getAsLong() + budgetNs;
         }
 
-        void awaitPark() throws IOException, InterruptedException {
-            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
-            while (System.nanoTime() < deadline) {
-                long at = parkedAt;
-                if (at != 0 && System.nanoTime() - at < MAX_AGE_NS) return;
-                Thread.sleep(50);
+        synchronized void onGear(int property, Integer value) {
+            if (property == GEAR_SELECTION) { selection = value; seenSelection = true; }
+            else if (property == CURRENT_GEAR) { current = value; seenCurrent = true; }
+            else return;
+            boolean now = selection != null && selection == PARK && current != null && current == PARK;
+            if (parked && !now) generation++;
+            parked = now;
+            notifyAll();
+        }
+
+        /** A one-off read for a gear that has had no event yet; it never overrides an event. */
+        synchronized void seed(int property, Integer value) {
+            if ((property == GEAR_SELECTION && !seenSelection) || (property == CURRENT_GEAR && !seenCurrent)) onGear(property, value);
+        }
+
+        synchronized int awaitPark(long timeoutMs) throws IOException, InterruptedException {
+            long end = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs);
+            while (!parked) {
+                long left = end - System.nanoTime();
+                if (left <= 0) throw new IOException("Park not confirmed: " + describe());
+                wait(Math.max(1, TimeUnit.NANOSECONDS.toMillis(left)));
             }
-            throw new IOException("Park not confirmed: " + last);
+            return generation;
         }
 
-        void check() throws IOException {
-            long at = parkedAt;
-            if (at == 0 || System.nanoTime() - at > MAX_AGE_NS) throw new IOException("Left Park or gear unknown: " + last);
+        synchronized void check(int token) throws IOException {
+            if (!parked || generation != token) throw new IOException("Left Park or gear unknown: " + describe());
+            if (clock.getAsLong() > deadline) throw new IOException("BECM read took too long");
         }
 
-        @Override public void close() { running = false; poller.interrupt(); }
+        private String describe() { return "selection=" + selection + " current=" + current; }
+
+        @Override public void close() { closer.run(); }
     }
 
     /** One guarded DID 496D read; throws with the reason when anything is off. */
     static double read(Context context) throws Exception {
-        // BECM 0x1635 / DID 496D is verified only on the EX5 (e245); never open the diagnostic channel elsewhere
-        if (VehiclePlatform.current() != VehiclePlatform.EX5) throw new IllegalStateException("BECM read is EX5-only");
-        try (ParkGuard park = new ParkGuard(SohRecorder.carInt(context, GEAR_SELECTION), SohRecorder.carInt(context, CURRENT_GEAR))) {
-            park.awaitPark();
-            return readInPark(park);
+        UdsPolicy.require(VehiclePlatform.current(), BECM, REQUEST); // EX5-only, before anything is opened
+        try (ParkGuard park = watchGear(context)) {
+            int token = park.awaitPark(2000);
+            return readInPark(park, token);
         } catch (InvocationTargetException e) {
             throw e.getCause() instanceof Exception ? (Exception) e.getCause() : e;
         }
     }
 
-    private static double readInPark(ParkGuard park) throws Exception {
+    /** Gear events from the shared CarPropertyManager (read only); fails closed when they cannot be registered. */
+    @android.annotation.SuppressLint("PrivateApi")
+    private static ParkGuard watchGear(Context context) throws Exception {
+        Object manager = CarProps.manager(context);
+        if (manager == null) throw new IOException("Car service unavailable");
+        ParkGuard guard = new ParkGuard(System::nanoTime, TimeUnit.SECONDS.toNanos(READ_BUDGET_S));
+        Class<?> type = Class.forName("android.car.hardware.property.CarPropertyManager$CarPropertyEventCallback");
+        Object callback = Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, values) -> {
+            switch (method.getName()) {
+                case "onChangeEvent": {
+                    Object v = values[0];
+                    int id = (Integer) v.getClass().getMethod("getPropertyId").invoke(v);
+                    int status = (Integer) v.getClass().getMethod("getStatus").invoke(v);
+                    Object gear = v.getClass().getMethod("getValue").invoke(v);
+                    guard.onGear(id, status == 0 && gear instanceof Integer ? (Integer) gear : null);
+                    return null;
+                }
+                case "onErrorEvent": guard.onGear((Integer) values[0], null); return null;
+                case "equals": return proxy == values[0]; // the manager keys its listeners by callback
+                case "hashCode": return System.identityHashCode(proxy);
+                case "toString": return "CFBecmParkGuard";
+                default: return null;
+            }
+        });
+        Method unregister = manager.getClass().getMethod("unregisterCallback", type);
+        guard.closer = () -> {
+            try { unregister.invoke(manager, callback); } catch (ReflectiveOperationException | RuntimeException ignored) { }
+        };
+        Method register = manager.getClass().getMethod("registerCallback", type, int.class, float.class);
+        Method getInt = manager.getClass().getMethod("getIntProperty", int.class, int.class);
+        for (int id : new int[]{GEAR_SELECTION, CURRENT_GEAR}) {
+            if (!(Boolean) register.invoke(manager, callback, id, 0f)) {
+                guard.close();
+                throw new IOException("Gear events unavailable");
+            }
+            try { guard.seed(id, (Integer) getInt.invoke(manager, id, 0)); } catch (ReflectiveOperationException | RuntimeException ignored) { }
+        }
+        return guard;
+    }
+
+    private static double readInPark(ParkGuard park, int token) throws Exception {
+        park.check(token);
         PathClassLoader sdk = new PathClassLoader(SDK_APK, SDK_APK + "!/lib/arm64-v8a:/vendor/lib64", BecmSoh.class.getClassLoader());
         Class<?> api = sdk.loadClass("com.geely.udsmiddleware.VehicleDiagIF");
         Class<?> listener = sdk.loadClass("com.geely.udsmiddleware.IVehicleDiagListener");
@@ -123,34 +178,35 @@ final class BecmSoh {
         Method status = api.getMethod("getStatusWithMiddleware");
         long readyBy = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (!(Boolean) status.invoke(client)) {
-            park.check();
+            park.check(token);
             if (System.nanoTime() >= readyBy) throw new IOException("Middleware did not become ready");
             Thread.sleep(100);
         }
         Method getMode = api.getMethod("getCurDiagType");
         int currentMode = (Integer) getMode.invoke(client);
         if (currentMode != 0) throw new IOException("Diagnostic channel busy, mode " + currentMode);
-        park.check();
+        park.check(token);
         int result = (Integer) api.getMethod("takeDiagWay", int.class, char.class, int.class).invoke(client, MODE, TESTER, 1);
         if (result != 0) throw new IOException("Middleware declined the diagnostic channel: " + result);
         try {
-            park.check();
+            park.check(token);
             if ((Integer) getMode.invoke(client) != MODE) throw new IOException("Requested diagnostic mode did not become active");
             awaiting.set(true);
+            UdsPolicy.require(VehiclePlatform.current(), BECM, REQUEST);
             boolean accepted = (Boolean) api.getMethod("sendUdsPayload", int.class, char.class, char.class, int.class, byte[].class)
                     .invoke(client, MODE, TESTER, BECM, REQUEST.length, REQUEST);
             if (!accepted) throw new IOException("Middleware rejected the request");
-            return awaitResponse(responses, park);
+            return awaitResponse(responses, park, token);
         } finally {
             awaiting.set(false);
             if ((Integer) getMode.invoke(client) == MODE) api.getMethod("releaseDiagWay").invoke(client);
         }
     }
 
-    private static double awaitResponse(LinkedBlockingQueue<Object> responses, ParkGuard park) throws Exception {
+    private static double awaitResponse(LinkedBlockingQueue<Object> responses, ParkGuard park, int token) throws Exception {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8);
         while (System.nanoTime() < deadline) {
-            park.check();
+            park.check(token);
             Object item = responses.poll(125, TimeUnit.MILLISECONDS);
             if (item instanceof String) throw new IOException((String) item);
             if (!(item instanceof byte[])) continue;
