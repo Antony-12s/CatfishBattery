@@ -313,7 +313,7 @@ final class ChargingPage extends FrameLayout {
     private View rangeRail() {
         LinearLayout rail = ui.row();
         rail.setPadding(ui.dp(6), ui.dp(6), ui.dp(6), ui.dp(6));
-        rail.setBackground(ui.night ? ui.box(0, 0x2EE2C08D, 999) : ui.box(ui.panel, ui.panelEdge, 20));
+        rail.setBackground(ui.night ? ui.box(0, 0x2E4CC9F0, 999) : ui.box(ui.panel, ui.panelEdge, 20));
         rail.setContentDescription("Chart range");
         for (String r : ChargingModel.RANGES) {
             TextView b = ui.text(24, ui.muted, 700);

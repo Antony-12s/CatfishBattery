@@ -146,7 +146,7 @@ final class SettingsPage extends FrameLayout {
         TextView ic = ui.text(28, ui.accent, 700);
         ic.setGravity(Gravity.CENTER);
         ChargingUi.set(ic, icon);
-        ic.setBackground(ui.box(ui.night ? 0x1FE2C08D : 0x142368C5, 0, 16));
+        ic.setBackground(ui.box(ui.night ? 0x1F4CC9F0 : 0x142368C5, 0, 16));
         row.addView(ic, new LinearLayout.LayoutParams(ui.dp(64), ui.dp(64)));
         LinearLayout text = ui.column();
         TextView t = ui.text(26, ui.text, 700);
@@ -169,7 +169,7 @@ final class SettingsPage extends FrameLayout {
         for (int i = 0; i < panes.length; i++) {
             boolean on = i == at;
             panes[i].setVisibility(on ? VISIBLE : GONE);
-            items[i].setBackground(ui.box(on ? (ui.night ? 0x14E2C08D : 0x0F2368C5) : ui.panel, on ? ui.accent : ui.panelEdge, 20));
+            items[i].setBackground(ui.box(on ? (ui.night ? 0x144CC9F0 : 0x0F2368C5) : ui.panel, on ? ui.accent : ui.panelEdge, 20));
             items[i].setSelected(on);
         }
         detail.scrollTo(0, 0);
@@ -519,7 +519,7 @@ final class SettingsPage extends FrameLayout {
         LinearLayout c = ui.column();
         c.setGravity(Gravity.CENTER_HORIZONTAL);
         c.setPadding(ui.dp(24), ui.dp(24), ui.dp(24), ui.dp(24));
-        c.setBackground(ui.box(ui.night ? 0x1AE2C08D : 0x0F2368C5, ui.night ? 0x59E2C08D : ui.panelEdge, 22));
+        c.setBackground(ui.box(ui.night ? 0x1A4CC9F0 : 0x0F2368C5, ui.night ? 0x594CC9F0 : ui.panelEdge, 22));
         TextView t = ui.text(26, ui.text, 700);
         ChargingUi.set(t, "Buy me a coffee");
         c.addView(t);
@@ -709,7 +709,7 @@ final class SettingsPage extends FrameLayout {
         Runnable touShown = () -> {
             ChargingUi.set(tou, (c.tou ? "☑" : "☐") + "  TOU");
             tou.setTextColor(c.tou ? ui.accent2 : ui.muted);
-            tou.setBackground(ui.box(c.tou ? (ui.night ? 0x24E2C08D : 0x1A2368C5) : 0, c.tou ? ui.accent : ui.night ? 0x2EE2C08D : ui.panelEdge, 14));
+            tou.setBackground(ui.box(c.tou ? (ui.night ? 0x244CC9F0 : 0x1A2368C5) : 0, c.tou ? ui.accent : ui.night ? 0x2E4CC9F0 : ui.panelEdge, 14));
             single.setVisibility(c.tou ? GONE : VISIBLE);
             off.setVisibility(c.tou ? VISIBLE : GONE);
             peak.setVisibility(c.tou ? VISIBLE : GONE);
@@ -890,7 +890,7 @@ final class SettingsPage extends FrameLayout {
 
     /** The AC / DC default badges: filled on the default charger, outlined elsewhere. */
     private void markDefaults() {
-        int edge = ui.night ? 0x2EE2C08D : ui.panelEdge;
+        int edge = ui.night ? 0x2E4CC9F0 : ui.panelEdge;
         for (View[] pair : defaultButtons) {
             String id = (String) pair[0].getTag();
             boolean[] on = { id.equals(form.ac), id.equals(form.dc) };
@@ -1025,7 +1025,7 @@ final class SettingsPage extends FrameLayout {
         if (number) e.setRawInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         e.setPadding(ui.dp(18), 0, ui.dp(18), 0);
         e.setMinHeight(ui.dp(76));
-        e.setBackground(ui.box(ui.night ? 0x08FFFFFF : ui.surface, ui.night ? 0x33E2C08D : ui.panelEdge, 14));
+        e.setBackground(ui.box(ui.night ? 0x08FFFFFF : ui.surface, ui.night ? 0x334CC9F0 : ui.panelEdge, 14));
         e.setText(value);
         if (number) e.setTag(Boolean.TRUE);
         return e;
@@ -1079,7 +1079,7 @@ final class SettingsPage extends FrameLayout {
         s.setSelection(Math.max(0, Math.min(labels.length - 1, selected)), false);
         s.setMinimumWidth(ui.dp(210));
         s.setMinimumHeight(ui.dp(76));
-        s.setBackground(ui.box(ui.night ? 0x08FFFFFF : ui.surface, ui.night ? 0x33E2C08D : ui.panelEdge, 14));
+        s.setBackground(ui.box(ui.night ? 0x08FFFFFF : ui.surface, ui.night ? 0x334CC9F0 : ui.panelEdge, 14));
         s.setPopupBackgroundDrawable(ui.box(ui.night ? 0xFF16161A : ui.surface, ui.cardEdge, 14));
         s.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             private int last = s.getSelectedItemPosition();

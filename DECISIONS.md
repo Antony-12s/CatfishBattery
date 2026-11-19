@@ -171,3 +171,12 @@ Do not resolve signer mismatches by uninstalling or clearing data.
   so the tool stays one dex file. android.car is not usable there: the shell user lacks CAR_POWERTRAIN.
 - VhalStream's int / float caches drop a value the car marks unavailable and clear on disconnect, so the app never
   shows a stale reading as live. APVP values were already cleared on disconnect.
+
+## Navy Cyan night theme (2026-11-19)
+- Replaces Midnight Champagne at night (owner's pick of 5, after feedback that yellow on black was too much and white
+  text blended into the gold). Navy background #071019, cards #0D1A26, text #E3EEF7, muted #86A0B5, accent cyan
+  #4CC9F0 with dark #04202B text on it; status good #85DAA4, warn #F2B86D, danger berry #FFA5C8 (no red).
+- The accent is only for taps (tabs, selected buttons) and energy that flows (V x A line, load bars, charts).
+  Headings, kickers, the sensor legend and its leader lines use the muted colour.
+- Cells on the schematic at night: jade #42CB80, amber #EB9A04, berry #FA7FB3. The B+ bus stays red: it marks
+  polarity, not a warning. The day theme is unchanged.

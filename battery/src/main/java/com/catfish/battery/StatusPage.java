@@ -362,7 +362,7 @@ final class StatusPage extends FrameLayout {
         return t;
     }
 
-    /** Day: a tinted pill; night (champagne): an outline only. */
+    /** Day: a tinted pill; night: an outline only. */
     private GradientDrawable badgeBg(int color, boolean quiet) {
         if (s.night) return s.round(0, 999, quiet ? 0x1FFFFFFF : StatusStyle.alpha(color, 0.35f), 1);
         return s.round(StatusStyle.alpha(color, 0.10f), 999, StatusStyle.alpha(color, 0.25f), 1);

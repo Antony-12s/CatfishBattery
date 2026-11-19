@@ -28,14 +28,14 @@ final class PackSchematicView extends View {
     private static final Typeface NORMAL = Typeface.create("sans-serif-medium", Typeface.NORMAL);
     private static final Typeface BOLD = Typeface.create("sans-serif", Typeface.BOLD);
     private static final Typeface LIGHT = Typeface.create("sans-serif-light", Typeface.NORMAL);
-    private static final int CHAMPAGNE = 0xffe2c08d;
+    private static final int NIGHT_ACCENT = 0xff4cc9f0;
     private static final Typeface MONO = Typeface.create("monospace", Typeface.BOLD);
     private static final DashPathEffect DASH = new DashPathEffect(new float[]{4, 5}, 0);
     private static final String[] LOAD_NAMES = {"Motor", "Cabin climate", "Battery thermal", "Other"};
     private static final String[] FLOW_KEYS = {"hv", "dc", "lv", "chg"};
 
     private final Shader nightPanel = new RadialGradient(0,0,1,
-            new int[]{0xff16161b,0xff0d0d10,0xff09090b},new float[]{0,.6f,1},Shader.TileMode.CLAMP);
+            new int[]{0xff10202e,0xff08121b,0xff050c13},new float[]{0,.6f,1},Shader.TileMode.CLAMP);
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final List<DrawableBox> solids = new ArrayList<>();
     private final DrawableBox base = new DrawableBox(box(0,-6,-6,0,372,192,12));
@@ -122,12 +122,12 @@ final class PackSchematicView extends View {
         paint.setShader(palette.night ? nightPanel : null);
         round(canvas,LEFT,0,LEFT+WIDTH,HEIGHT,12,palette.bgDeep,0);
         paint.setShader(null);
-        round(canvas,LEFT,0,LEFT+WIDTH,HEIGHT,12,0,tone(0x14e2c08d,palette.line));
+        round(canvas,LEFT,0,LEFT+WIDTH,HEIGHT,12,0,tone(0x144cc9f0,palette.line));
         pager.step(now);
         drawSystem(canvas);
         drawSwipeCard(canvas);
         // glass pack: floor reflection, tray and BMS framed like the cards, translucent cells with a rim
-        int edge = tone(0x66e2c08d,0xff9fb2c6), glint = tone(0xfff4efe7,0xffffffff);
+        int edge = tone(0x664cc9f0,0xff9fb2c6), glint = tone(0xffe3eef7,0xffffffff);
         canvas.save();
         canvas.translate(floor.x(),floor.y()+12);
         canvas.rotate(-29);
@@ -214,7 +214,7 @@ final class PackSchematicView extends View {
         paint.setColor(muted());
         paint.setAlpha(70);
         canvas.drawCircle(cx,cy,r,paint);
-        paint.setColor(tone(CHAMPAGNE,palette.accent));
+        paint.setColor(tone(NIGHT_ACCENT,palette.accent));
         canvas.drawArc(cx-r,cy-r,cx+r,cy+r,sweep,100f,false,paint);
         paint.setStrokeCap(Paint.Cap.BUTT);
         paint.setStyle(Paint.Style.FILL);
@@ -236,7 +236,7 @@ final class PackSchematicView extends View {
     }
 
     private void drawSystem(Canvas canvas) {
-        int dim = tone(0x80e2c08d,0xff8298af), active = tone(CHAMPAGNE,palette.accent);
+        int dim = tone(0x804cc9f0,0xff8298af), active = tone(NIGHT_ACCENT,palette.accent);
         int flowColor = data.charging ? palette.good : active;
         boolean[] enabled = {data.hvOn || data.charging,data.dcOn,data.dcOn,data.charging};
         boolean inletOn = data.inlet != SchematicReadings.INLET_NONE, v2l = data.inlet == SchematicReadings.INLET_V2L;
@@ -261,12 +261,12 @@ final class PackSchematicView extends View {
         Typeface socFont = palette.night ? LIGHT : BOLD;
         label(canvas,data.soc,hx,HERO_T+82,46,ink(),socFont,Paint.Align.LEFT);
         float sep = hx + 150;
-        round(canvas,sep,HERO_T+44,sep+1.5f,HERO_T+84,0,tone(0x40e2c08d,palette.line),0);
+        round(canvas,sep,HERO_T+44,sep+1.5f,HERO_T+84,0,tone(0x404cc9f0,palette.line),0);
         label(canvas,"SOH",sep+12,HERO_T+52,12,kicker(),MONO,Paint.Align.LEFT);
         if (data.sohReading) spinner(canvas,sep+24,HERO_T+70,11);
         else label(canvas,data.soh,sep+12,HERO_T+82,22,ink(),BOLD,Paint.Align.LEFT);
-        label(canvas,data.powerLine,hx,HERO_B-13,15,data.powerIn ? palette.good : tone(CHAMPAGNE,ink()),BOLD,Paint.Align.LEFT);
-        round(canvas,SPARK_L-12,HERO_T+14,SPARK_L-11,HERO_B-14,0,tone(0x21e2c08d,palette.line),0);
+        label(canvas,data.powerLine,hx,HERO_B-13,15,data.powerIn ? palette.good : tone(NIGHT_ACCENT,ink()),BOLD,Paint.Align.LEFT);
+        round(canvas,SPARK_L-12,HERO_T+14,SPARK_L-11,HERO_B-14,0,tone(0x214cc9f0,palette.line),0);
         drawTrend(canvas,flowColor);
 
         // Loads, or the charge in progress
@@ -313,8 +313,8 @@ final class PackSchematicView extends View {
     private void pill(Canvas c,String text,float right,float y,int color,boolean filled) {
         if (text == null || text.isEmpty()) return;
         float w = measure(text,13,BOLD) + 22;
-        round(c,right-w,y-17,right,y+6,11.5f,filled ? (color & 0xffffff) | tone(0x24000000,0x1c000000) : tone(0xff15151a,0xfff0f5fa),
-                filled ? color : tone(0x38e2c08d,palette.line));
+        round(c,right-w,y-17,right,y+6,11.5f,filled ? (color & 0xffffff) | tone(0x24000000,0x1c000000) : tone(0xff0d1a26,0xfff0f5fa),
+                filled ? color : tone(0x384cc9f0,palette.line));
         label(c,text,right-w/2,y-1,13,color,BOLD,Paint.Align.CENTER);
     }
 
@@ -341,7 +341,7 @@ final class PackSchematicView extends View {
         float at = -offset / w, mid = (SWIPE_L + SWIPE_R) / 2;
         for (int i = 0; i < PAGES.length; i++) {
             float k = Math.max(0,1 - Math.abs(at - i));
-            fill(k > .5f ? tone(CHAMPAGNE,palette.accent) : muted());
+            fill(k > .5f ? tone(NIGHT_ACCENT,palette.accent) : muted());
             paint.setAlpha((int) (255 * (.35f + .65f * k)));
             c.drawCircle(mid + (i - (PAGES.length - 1) / 2f) * 14,DOTS_Y,2.6f + 1.2f * k,paint);
         }
@@ -353,22 +353,22 @@ final class PackSchematicView extends View {
         label(c,data.rangeKm,l+16,b-14,38,ink(),big,Paint.Align.LEFT);
         label(c,"km",l+22+measure(data.rangeKm,38,big),b-15,16,muted(),NORMAL,Paint.Align.LEFT);
         float sx = l + 190;
-        round(c,sx-14,t+44,sx-12.5f,b-10,0,tone(0x21e2c08d,palette.line),0);
+        round(c,sx-14,t+44,sx-12.5f,b-10,0,tone(0x214cc9f0,palette.line),0);
         label(c,"Energy left",sx,t+56,13,muted(),NORMAL,Paint.Align.LEFT);
         value(c,data.energyLeft,r-16,t+56);
         round(c,sx,b-26,r-16,b-22,2,track(),0);
         if (Double.isFinite(data.energyShare)) {
-            round(c,sx,b-26,sx+(r-16-sx)*(float) Math.min(1,data.energyShare),b-22,2,tone(CHAMPAGNE,palette.accent),0);
+            round(c,sx,b-26,sx+(r-16-sx)*(float) Math.min(1,data.energyShare),b-22,2,tone(NIGHT_ACCENT,palette.accent),0);
         }
         label(c,"Usable at this SOC",sx,b-8,12,muted(),NORMAL,Paint.Align.LEFT);
     }
 
     private void drawPowerPage(Canvas c) {
         float l = SWIPE_L, r = SWIPE_R, b = SWIPE_B, t = SWIPE_T;
-        int champagne = tone(CHAMPAGNE,palette.accent);
+        int accent = tone(NIGHT_ACCENT,palette.accent);
         String state = data.powerState;
         boolean green = "Charging".equals(state) || "Regen".equals(state);
-        pill(c,state,r-16,t+26,green ? palette.good : "In use".equals(state) ? champagne : muted(),green || "In use".equals(state));
+        pill(c,state,r-16,t+26,green ? palette.good : "In use".equals(state) ? accent : muted(),green || "In use".equals(state));
         Typeface big = palette.night ? LIGHT : BOLD;
         boolean in = data.packKw <= -.05;
         label(c,data.packKwText,l+16,b-14,30,in ? palette.good : ink(),big,Paint.Align.LEFT);
@@ -379,7 +379,7 @@ final class PackSchematicView extends View {
         if (Double.isFinite(data.packKw) && Math.abs(data.packKw) >= .05) {
             float x = data.packKw > 0 ? zero + (br - zero) * (float) Math.min(1,data.packKw / DRIVE_KW)
                     : zero - (zero - bl) * (float) Math.min(1,-data.packKw / REGEN_KW);
-            round(c,Math.min(x,zero),y-3,Math.max(x,zero),y+3,3,data.packKw > 0 ? champagne : palette.good,0);
+            round(c,Math.min(x,zero),y-3,Math.max(x,zero),y+3,3,data.packKw > 0 ? accent : palette.good,0);
         }
         round(c,zero-.75f,y-8,zero+.75f,y+8,0,muted(),0);
         label(c,data.charging ? "Into pack" : "Regen",bl,y-10,11.5f,muted(),NORMAL,Paint.Align.LEFT);
@@ -410,7 +410,7 @@ final class PackSchematicView extends View {
         return "";
     }
 
-    private int track() { return tone(0x1fe2c08d,0xffdce6f0); }
+    private int track() { return tone(0x1f4cc9f0,0xffdce6f0); }
 
     /** The plug badge left of the Loads card: AC Type 2 or CCS2 icon with its power; green in, blue out (V2L). */
     private void drawInlet(Canvas c,int color,boolean ccs2) {
@@ -479,7 +479,7 @@ final class PackSchematicView extends View {
         sparkArea.lineTo(sparkEndX,SPARK_B);
         sparkArea.lineTo(startX,SPARK_B);
         sparkArea.close();
-        round(c,SPARK_L,SPARK_B,SPARK_R,SPARK_B+1,0,tone(0xff26262c,palette.line),0);
+        round(c,SPARK_L,SPARK_B,SPARK_R,SPARK_B+1,0,tone(0xff1b3043,palette.line),0);
         fill(color);
         paint.setAlpha(30);
         c.drawPath(sparkArea,paint);
@@ -500,12 +500,12 @@ final class PackSchematicView extends View {
     /** Group headers of the sensor legend with a bar beside each group's rows (LEGEND_HEADER_Y in the geometry). */
     private void drawLegendGroups(Canvas canvas) {
         int[] rowsPerGroup = {1,2,2,2};
-        int color = tone(CHAMPAGNE,kicker());
+        int color = kicker(); // group headers are labels, not accents
         paint.setLetterSpacing(1/12f);
         for (int g = 0; g < LEGEND_GROUPS.length; g++) {
             float header = LEGEND_HEADER_Y[g], last = header + 22 + (rowsPerGroup[g]-1) * 26;
             label(canvas,LEGEND_GROUPS[g],LEGEND_X,header,12,color,MONO,Paint.Align.LEFT);
-            round(canvas,LEGEND_X-12,header-11,LEGEND_X-9,last+9,1.5f,(tone(CHAMPAGNE,0xff9fb2c6) & 0xffffff) | 0x8c000000,0);
+            round(canvas,LEGEND_X-12,header-11,LEGEND_X-9,last+9,1.5f,(tone(0xff5f7890,0xff9fb2c6) & 0xffffff) | 0x8c000000,0);
         }
         paint.setLetterSpacing(0);
     }
@@ -513,8 +513,8 @@ final class PackSchematicView extends View {
     private void drawSensor(Canvas canvas, DrawableSensor drawable) {
         Sensor sensor = drawable.sensor;
         Point at = sensor.labelAt();
-        stroke(canvas,drawable.lead,tone(0xff9a8640,0xff8c7131),1.4f);
-        circle(canvas,sensor.anchor(),2.6f,tone(0xffc9ad55,0xffa18436),0,0);
+        stroke(canvas,drawable.lead,tone(0xff5f7890,0xff8c7131),1.4f);
+        circle(canvas,sensor.anchor(),2.6f,tone(0xff8599af,0xffa18436),0,0);
         int index = sensor.number()-1;
         String reading = data.sensorReadings[index];
         int readingColor = bandInk(data.sensorBands[index],ink());
@@ -619,7 +619,7 @@ final class PackSchematicView extends View {
         if (selected == null) return;
         RectF r = selected.bounds;
         float dy = selected.cell > 0 ? -motion.offset(selected.cell-1,now)*1.25f : 0; // follow a lifted cell
-        outline(tone(0xfff0d6ad,palette.accent),2.5f);
+        outline(tone(0xff8addf5,palette.accent),2.5f);
         canvas.drawRoundRect(r.left-3,r.top-3+dy,r.right+3,r.bottom+3+dy,3,3,paint);
     }
 
@@ -636,9 +636,9 @@ final class PackSchematicView extends View {
 
     private int cellColor(SchematicReadings.Band band) {
         return switch (band) {
-            case GOOD -> 0xff3ddba0;
-            case WARN -> 0xfff5b73c;
-            case DANGER -> 0xfff2616b;
+            case GOOD -> tone(0xff42cb80,0xff3ddba0);
+            case WARN -> tone(0xffeb9a04,0xfff5b73c);
+            case DANGER -> tone(0xfffa7fb3,0xfff2616b); // night: berry, not red (red reads as broken)
             case WAIT -> tone(0xff2a3645,0xffc1d1df);
         };
     }
@@ -656,15 +656,15 @@ final class PackSchematicView extends View {
     private int ink() { return tone(0xffeef3fb,palette.text); }
     private int muted() { return tone(0xff9aa7bd,palette.muted); }
     private int kicker() { return tone(0xff8f9cb3,palette.muted); }
-    private int nodeColor() { return tone(0xe6121216,palette.surface); }
+    private int nodeColor() { return tone(0xe60D1A26,palette.surface); }
 
     private void node(Canvas c,float l,float t,float r,float b) { node(c,l,t,r,b,0); }
 
     /** A card; accent != 0 draws its border in that colour (the Loads card turns green while charging). */
     private void node(Canvas c,float l,float t,float r,float b,int accent) {
-        round(c,l,t,r,b,14,nodeColor(),accent != 0 ? accent : tone(0x38e2c08d,palette.line));
+        round(c,l,t,r,b,14,nodeColor(),accent != 0 ? accent : tone(0x384cc9f0,palette.line));
     }
-    private void title(Canvas c,String s,float x,float y) { label(c,s,x,y,18,tone(0xfff4efe7,ink()),BOLD,Paint.Align.LEFT); }
+    private void title(Canvas c,String s,float x,float y) { label(c,s,x,y,18,tone(0xffe3eef7,ink()),BOLD,Paint.Align.LEFT); }
     private void value(Canvas c,String s,float x,float y) { label(c,s,x,y,18,ink(),BOLD,Paint.Align.RIGHT); }
     private void readLabel(Canvas c,String s,float x,float y,int color) {
         label(c,s,x,y,17,color,NORMAL,Paint.Align.LEFT);

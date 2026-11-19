@@ -132,50 +132,50 @@ final class BatteryWindowStyle {
             """;
     }
 
-    /** Midnight Champagne, the approved night look: deep black, champagne accents, quiet cards. Night only. */
+    /** Navy Cyan, the approved night look: deep black, cyan accents, quiet cards. Night only. */
     static String champagneNight() {
         return """
-            :root{--accent:#e2c08d;--accent-2:#f0d6ad;--accent-rgb:226,192,141;--good:#9fe3b8;--warn:#f3b46a;--text:#f4efe7;--muted:#9a9184;--muted-2:#7d766c;--line:rgba(226,192,141,.12);--line-soft:rgba(226,192,141,.07)}
-            .card{background:linear-gradient(180deg,#121216 0%,#0e0e11 100%)!important;border:1px solid rgba(226,192,141,.13)!important;border-radius:24px!important;box-shadow:0 30px 70px rgba(0,0,0,.55)!important}
-            .sectionHead h2{font-size:34px!important;font-weight:500!important;letter-spacing:.01em;color:#f4efe7!important}
-            .sectionKicker{text-transform:uppercase;letter-spacing:.24em;font-size:14px!important;color:#e2c08d!important;font-weight:600}
-            .liveBadge{background:transparent!important;border:1px solid rgba(159,227,184,.35)!important;color:#9fe3b8!important;font-weight:600;letter-spacing:.06em}
+            :root{--accent:#4cc9f0;--accent-2:#8addf5;--accent-rgb:76,201,240;--good:#85daa4;--warn:#f2b86d;--text:#e3eef7;--muted:#86a0b5;--muted-2:#6e879b;--line:rgba(76,201,240,.12);--line-soft:rgba(76,201,240,.07)}
+            .card{background:linear-gradient(180deg,#0D1A26 0%,#0a1520 100%)!important;border:1px solid rgba(76,201,240,.13)!important;border-radius:24px!important;box-shadow:0 30px 70px rgba(0,0,0,.55)!important}
+            .sectionHead h2{font-size:34px!important;font-weight:500!important;letter-spacing:.01em;color:#e3eef7!important}
+            .sectionKicker{text-transform:uppercase;letter-spacing:.24em;font-size:14px!important;color:#4cc9f0!important;font-weight:600}
+            .liveBadge{background:transparent!important;border:1px solid rgba(159,227,184,.35)!important;color:#85daa4!important;font-weight:600;letter-spacing:.06em}
             .liveBadge.offline{border-color:rgba(255,255,255,.12)!important;color:var(--muted)!important}
             .updBadge{background:transparent!important;border:0!important;color:var(--muted)!important;font-weight:500}
-            #liveCellCount,#cellTempCount{color:#e2c08d!important;font-weight:600;letter-spacing:.04em}
-            .packTabs{background:transparent!important;border:1px solid rgba(226,192,141,.18)!important;border-radius:999px!important}
+            #liveCellCount,#cellTempCount{color:#4cc9f0!important;font-weight:600;letter-spacing:.04em}
+            .packTabs{background:transparent!important;border:1px solid rgba(76,201,240,.18)!important;border-radius:999px!important}
             .packTabs .subtab{border-radius:999px!important;color:var(--muted)!important;font-weight:600}
-            .packTabs .subtab.active{background:#e2c08d!important;color:#141110!important;box-shadow:0 6px 20px rgba(226,192,141,.28)}
-            .packWrap{background:radial-gradient(ellipse at 50% 45%,#16161b 0%,#0d0d10 60%,#09090b 100%)!important;border:1px solid rgba(226,192,141,.08)}
-            .sysNode{fill:rgba(18,18,22,.9)!important;stroke:rgba(226,192,141,.22)!important}
-            .sysPath{stroke:rgba(226,192,141,.5)!important}
-            .sysTitle{fill:#f4efe7!important}.sysLab{fill:#9a9184!important}
+            .packTabs .subtab.active{background:#4cc9f0!important;color:#04202B!important;box-shadow:0 6px 20px rgba(76,201,240,.28)}
+            .packWrap{background:radial-gradient(ellipse at 50% 45%,#10202e 0%,#08121b 60%,#050c13 100%)!important;border:1px solid rgba(76,201,240,.08)}
+            .sysNode{fill:rgba(18,18,22,.9)!important;stroke:rgba(76,201,240,.22)!important}
+            .sysPath{stroke:rgba(76,201,240,.5)!important}
+            .sysTitle{fill:#e3eef7!important}.sysLab{fill:#86a0b5!important}
             /* Remaining hardcoded blues in the page CSS: live flow paths/dots and the load share bars. */
-            .sysPath.on{stroke:#e2c08d!important}.sysDot.on{fill:#e2c08d!important}.sysBar{fill:#e2c08d!important}.sysTrack{fill:rgba(226,192,141,.12)!important}
-            .socKicker{fill:#e2c08d!important;letter-spacing:.2em}.socBig{font-weight:300!important;letter-spacing:-.03em}
-            .facts{gap:0!important;border-top:1px solid rgba(226,192,141,.14);border-bottom:1px solid rgba(226,192,141,.14);padding:6px 0}
-            .cellFacts{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;border-left:1px solid rgba(226,192,141,.14)!important}
+            .sysPath.on{stroke:#4cc9f0!important}.sysDot.on{fill:#4cc9f0!important}.sysBar{fill:#4cc9f0!important}.sysTrack{fill:rgba(76,201,240,.12)!important}
+            .socKicker{fill:#4cc9f0!important;letter-spacing:.2em}.socBig{font-weight:300!important;letter-spacing:-.03em}
+            .facts{gap:0!important;border-top:1px solid rgba(76,201,240,.14);border-bottom:1px solid rgba(76,201,240,.14);padding:6px 0}
+            .cellFacts{background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;border-left:1px solid rgba(76,201,240,.14)!important}
             .facts>.cellFacts:first-child{border-left:0!important}
             .cellFacts>div{border:0!important;padding:16px 26px!important}
-            .cellFacts small{text-transform:uppercase;letter-spacing:.2em;font-size:13px!important;color:#e2c08d!important;font-weight:600}
-            .cellFacts strong{font-size:44px!important;font-weight:300!important;letter-spacing:-.02em;color:#f4efe7!important;margin-top:4px!important}
+            .cellFacts small{text-transform:uppercase;letter-spacing:.2em;font-size:13px!important;color:#4cc9f0!important;font-weight:600}
+            .cellFacts strong{font-size:44px!important;font-weight:300!important;letter-spacing:-.02em;color:#e3eef7!important;margin-top:4px!important}
             .cellFacts em{font-size:14px!important;color:var(--muted-2)!important}
-            .cellFacts strong.good,#batteryCellDelta{color:#9fe3b8!important}
-            .flowStats{background:transparent!important;border:0!important;border-top:1px solid rgba(226,192,141,.14)!important;border-bottom:1px solid rgba(226,192,141,.14)!important;border-radius:0!important}
-            .flowStats>div{border-color:rgba(226,192,141,.14)!important}
-            .flowStats small{text-transform:uppercase;letter-spacing:.2em;font-size:13px!important;color:#e2c08d!important;font-weight:600}
+            .cellFacts strong.good,#batteryCellDelta{color:#85daa4!important}
+            .flowStats{background:transparent!important;border:0!important;border-top:1px solid rgba(76,201,240,.14)!important;border-bottom:1px solid rgba(76,201,240,.14)!important;border-radius:0!important}
+            .flowStats>div{border-color:rgba(76,201,240,.14)!important}
+            .flowStats small{text-transform:uppercase;letter-spacing:.2em;font-size:13px!important;color:#4cc9f0!important;font-weight:600}
             .flowStats strong{font-size:46px!important;font-weight:300!important;letter-spacing:-.02em}
-            .histChart,.histSide,.pane,.list,.kpi{background:rgba(255,255,255,.015)!important;border:1px solid rgba(226,192,141,.12)!important;border-radius:20px!important}
-            .rangeSelect{background:transparent!important;border:1px solid rgba(226,192,141,.18)!important;border-radius:999px!important}
+            .histChart,.histSide,.pane,.list,.kpi{background:rgba(255,255,255,.015)!important;border:1px solid rgba(76,201,240,.12)!important;border-radius:20px!important}
+            .rangeSelect{background:transparent!important;border:1px solid rgba(76,201,240,.18)!important;border-radius:999px!important}
             .rangeSelect button{border-radius:999px!important}
-            .rangeSelect button.active{background:#e2c08d!important;color:#141110!important}
-            .chartAxis{fill:#9a9184!important;font-size:18px!important}
+            .rangeSelect button.active{background:#4cc9f0!important;color:#04202B!important}
+            .chartAxis{fill:#86a0b5!important;font-size:18px!important}
             /* Champagne accent and amber warn are too close on the chart: SOC goes ivory, kW out stays amber. */
-            .chartSoc{stroke:#f4efe7!important;stroke-width:3!important}i.soc{background:#f4efe7!important}
-            .chartKw:not(.in){stroke:#e8a24a!important}i.kw{background:#e8a24a!important}
+            .chartSoc{stroke:#e3eef7!important;stroke-width:3!important}i.soc{background:#e3eef7!important}
+            .chartKw:not(.in){stroke:#f2b86d!important}i.kw{background:#f2b86d!important}
             .kpi strong{font-size:54px!important;font-weight:300!important}
-            .savebar{background:transparent!important;border:1px solid rgba(226,192,141,.16)!important}
-            .savebar .setSave{background:#e2c08d!important;color:#141110!important}
+            .savebar{background:transparent!important;border:1px solid rgba(76,201,240,.16)!important}
+            .savebar .setSave{background:#4cc9f0!important;color:#04202B!important}
             """;
     }
 

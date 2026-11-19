@@ -5,7 +5,7 @@ import android.content.res.Configuration;
 
 /**
  * Day and night colours for the native pages, taken from the approved WebView look (BatteryWindowStyle css()).
- * Night pages may still apply the Midnight Champagne accents (BatteryWindowStyle champagneNight()).
+ * Night pages may still apply the Navy Cyan accents (BatteryWindowStyle champagneNight()).
  */
 final class UiPalette {
     final boolean night;
@@ -30,7 +30,7 @@ final class UiPalette {
     static UiPalette of(boolean night) {
         return night
                 ? new UiPalette(true, 0xFF20272E, 0xFF0B1118, 0xFF111A24, 0xFF172230, 0xFF304255, 0xFFE8EEF5,
-                        0xFFA7B6C8, 0xFF2A74D6, 0xFF4FE09A, 0xFFFFB55F, 0xFFFF6C79)
+                        0xFFA7B6C8, 0xFF4CC9F0, 0xFF85DAA4, 0xFFF2B86D, 0xFFFFA5C8)
                 : new UiPalette(false, 0xFFEDF2F7, 0xFFE7EEF5, 0xFFFFFFFF, 0xFFF0F5FA, 0xFFB8C7D7, 0xFF142A40,
                         0xFF445D75, 0xFF2368C5, 0xFF178657, 0xFF9A5A10, 0xFFB83C4B);
     }

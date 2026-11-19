@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
 
 /**
  * Shared look of the native Charging, History and Settings pages: the colours and text sizes of the WebView pages
- * (BatteryWindowStyle css(), Midnight Champagne at night) and small view factories. The car runs at density 160,
+ * (BatteryWindowStyle css(), Navy Cyan at night) and small view factories. The car runs at density 160,
  * so 1 dp = 1 px and the CSS pixel sizes are used as sp / dp unchanged.
  */
 final class ChargingUi {
@@ -40,11 +40,11 @@ final class ChargingUi {
         UiPalette p = UiPalette.of(context);
         night = p.night;
         if (night) {
-            // Midnight Champagne (BatteryWindowStyle champagneNight())
-            card = 0xFF101013; cardEdge = 0x21E2C08D; panel = 0x04FFFFFF; panelEdge = 0x1FE2C08D; lineSoft = 0x12E2C08D;
-            text = 0xFFF4EFE7; muted = 0xFF9A9184; muted2 = 0xFF7D766C; accent = 0xFFE2C08D; accent2 = 0xFFF0D6AD;
-            onAccent = 0xFF141110; good = 0xFF9FE3B8; warn = 0xFFF3B46A; danger = p.danger; track = 0x1FE2C08D;
-            surface = 0x0AFFFFFF; socLine = 0xFFF4EFE7; kwOut = 0xFFE8A24A;
+            // Navy Cyan (BatteryWindowStyle champagneNight())
+            card = 0xFF0D1A26; cardEdge = 0x214CC9F0; panel = 0x04FFFFFF; panelEdge = 0x1F4CC9F0; lineSoft = 0x124CC9F0;
+            text = 0xFFE3EEF7; muted = 0xFF86A0B5; muted2 = 0xFF6E879B; accent = 0xFF4CC9F0; accent2 = 0xFF8ADDF5;
+            onAccent = 0xFF04202B; good = 0xFF85DAA4; warn = 0xFFF2B86D; danger = p.danger; track = 0x1F4CC9F0;
+            surface = 0x0AFFFFFF; socLine = 0xFFE3EEF7; kwOut = 0xFFF2B86D;
         } else {
             card = 0xFFFFFFFF; cardEdge = p.line; panel = p.bgDeep; panelEdge = p.line; lineSoft = 0xFFD5DFE9;
             text = p.text; muted = p.muted; muted2 = 0xFF4D647A; accent = p.accent; accent2 = 0xFF205CA9;
@@ -95,15 +95,15 @@ final class ChargingUi {
     }
 
     TextView kicker() {
-        TextView t = night ? text(14, accent, 600) : text(22, muted, 500);
+        TextView t = night ? text(14, muted, 600) : text(22, muted, 500); // headings stay quiet: accent is for taps and flow
         if (night) { t.setAllCaps(true); t.setLetterSpacing(0.24f); }
         t.setPadding(0, dp(night ? 10 : 4), 0, 0);
         return oneLine(t);
     }
 
-    /** Small label above a big number (stats tiles, KPIs); champagne capitals at night. */
+    /** Small label above a big number (stats tiles, KPIs); muted capitals at night. */
     TextView label(float daySp) {
-        TextView t = night ? text(13, accent, 600) : text(daySp, muted, 600);
+        TextView t = night ? text(13, muted, 600) : text(daySp, muted, 600);
         if (night) { t.setAllCaps(true); t.setLetterSpacing(0.2f); }
         return oneLine(t);
     }
@@ -126,7 +126,7 @@ final class ChargingUi {
     LinearLayout card() {
         LinearLayout c = column();
         GradientDrawable d = night
-                ? new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[] { 0xFF121216, 0xFF0E0E11 })
+                ? new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[] { 0xFF0D1A26, 0xFF0A1520 })
                 : new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[] { 0xFFFFFFFF, 0xFFF8FBFD });
         d.setCornerRadius(dp(24));
         d.setStroke(dp(1), cardEdge);
@@ -154,7 +154,7 @@ final class ChargingUi {
 
     View divider(boolean vertical) {
         View v = new View(context);
-        v.setBackgroundColor(night ? 0x24E2C08D : lineSoft);
+        v.setBackgroundColor(night ? 0x244CC9F0 : lineSoft);
         v.setLayoutParams(vertical ? new LinearLayout.LayoutParams(dp(1), ViewGroup.LayoutParams.MATCH_PARENT)
                 : new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
         return v;
@@ -201,7 +201,7 @@ final class ChargingUi {
         b.setPadding(dp(24), 0, dp(24), 0);
         b.setStateListAnimator(null);
         b.setTextColor(primary ? onAccent : text);
-        b.setBackground(primary ? box(accent, 0, 14) : box(0, night ? 0x2EE2C08D : panelEdge, 14));
+        b.setBackground(primary ? box(accent, 0, 14) : box(0, night ? 0x2E4CC9F0 : panelEdge, 14));
         set(b, value);
         return b;
     }
@@ -226,7 +226,7 @@ final class ChargingUi {
         set(t, "●  " + (live ? "Charging" : "Not charging"));
         int c = live ? good : muted;
         t.setTextColor(c);
-        t.setBackground(night ? box(0, live ? 0x599FE3B8 : 0x1FFFFFFF, 999)
+        t.setBackground(night ? box(0, live ? 0x5985DAA4 : 0x1FFFFFFF, 999)
                 : box(live ? 0x1A178657 : 0xFFF0F5FA, 0, 999));
     }
 
@@ -254,7 +254,7 @@ final class ChargingUi {
         TextView t = text(20, dc ? warn : ac ? accent2 : muted, 800);
         t.setGravity(Gravity.CENTER);
         t.setLetterSpacing(0.06f);
-        int fill = dc ? 0x29F59D32 : ac ? (night ? 0x29E2C08D : 0x292A74D6) : (night ? 0x0FFFFFFF : 0xFFF0F5FA);
+        int fill = dc ? 0x29F59D32 : ac ? (night ? 0x294CC9F0 : 0x292A74D6) : (night ? 0x0FFFFFFF : 0xFFF0F5FA);
         t.setBackground(box(fill, 0, 8));
         set(t, value);
         return t;

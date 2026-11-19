@@ -286,7 +286,7 @@ final class HistoryPage extends FrameLayout {
             chip.setGravity(Gravity.CENTER_VERTICAL);
             chip.setMinHeight(ui.dp(70));
             chip.setPadding(ui.dp(16), 0, ui.dp(16), 0);
-            int edge = ui.night ? 0x40E2C08D : ui.panelEdge;
+            int edge = ui.night ? 0x404CC9F0 : ui.panelEdge;
             GradientDrawable d = ui.box(ui.surface, edge, 999);
             if (r.chargerDefault) d.setStroke(ui.dp(1), edge, ui.dp(6), ui.dp(4));
             chip.setBackground(d);
@@ -311,7 +311,7 @@ final class HistoryPage extends FrameLayout {
     /** Pressed tint; the live charge also gets the WebView's 3 px green edge on the left. */
     private Drawable rowBackground(boolean live) {
         StateListDrawable s = new StateListDrawable();
-        s.addState(new int[] { android.R.attr.state_pressed }, ui.box(ui.night ? 0x14E2C08D : 0x142368C5, 0, 0));
+        s.addState(new int[] { android.R.attr.state_pressed }, ui.box(ui.night ? 0x144CC9F0 : 0x142368C5, 0, 0));
         if (!live) return s;
         LayerDrawable l = new LayerDrawable(new Drawable[] { s, ui.box(ui.good, 0, 0) });
         l.setLayerGravity(1, Gravity.START | Gravity.FILL_VERTICAL);
@@ -347,8 +347,8 @@ final class HistoryPage extends FrameLayout {
             LinearLayout b = ui.row();
             b.setMinimumHeight(ui.dp(90));
             b.setPadding(ui.dp(28), ui.dp(20), ui.dp(28), ui.dp(20));
-            b.setBackground(o.on ? ui.box(ui.night ? 0x24E2C08D : 0x1A2368C5, ui.accent, 16)
-                    : ui.box(0, ui.night ? 0x2EE2C08D : ui.panelEdge, 16));
+            b.setBackground(o.on ? ui.box(ui.night ? 0x244CC9F0 : 0x1A2368C5, ui.accent, 16)
+                    : ui.box(0, ui.night ? 0x2E4CC9F0 : ui.panelEdge, 16));
             b.setClickable(true);
             b.setFocusable(true);
             TextView name = ui.oneLine(ui.text(28, o.on ? ui.accent2 : ui.text, 700));

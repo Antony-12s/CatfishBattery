@@ -70,7 +70,7 @@ final class HealthChartView extends View {
         if (x1 == x0) x1 = x0 + 1;
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(ui.dp(1));
-        paint.setColor(ui.night ? 0x24E2C08D : ui.lineSoft);
+        paint.setColor(ui.night ? 0x244CC9F0 : ui.lineSoft);
         for (int i = 0; i <= 2; i++) {
             float gy = plot.top + plot.height() * i / 2f;
             c.drawLine(plot.left, gy, plot.right, gy, paint);

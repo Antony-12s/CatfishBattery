@@ -8,7 +8,7 @@ import android.widget.TextView;
 
 /**
  * Colours, sizes and drawables of the native Status page. Day is the approved WebView daylight look; night is Midnight
- * Champagne (BatteryWindowStyle champagneNight()). Base colours come from {@link UiPalette}; sizes are the window CSS
+ * Navy Cyan (BatteryWindowStyle champagneNight(), name kept). Base colours come from {@link UiPalette}; sizes are the window CSS
  * px of BatteryWindowStyle css(), which are dp here (the car runs at density 160, so 1 dp = 1 px).
  */
 final class StatusStyle {
@@ -28,21 +28,21 @@ final class StatusStyle {
         surface2 = p.surface2;
         danger = p.danger;
         if (night) {
-            accent = 0xFFE2C08D;
-            onAccent = 0xFF141110;
-            text = 0xFFF4EFE7;
-            muted = 0xFF9A9184;
-            muted2 = 0xFF7D766C;
-            line = 0x1FE2C08D;
-            lineSoft = 0x12E2C08D;
-            cardTop = 0xFF121216;
-            cardBottom = 0xFF0E0E11;
-            cardBorder = 0x21E2C08D;
-            good = 0xFF9FE3B8;
-            warn = 0xFFF3B46A;
-            panelTop = 0xFF16161B;
-            panelBottom = 0xFF09090B;
-            panelBorder = 0x14E2C08D;
+            accent = 0xFF4CC9F0;
+            onAccent = 0xFF04202B;
+            text = 0xFFE3EEF7;
+            muted = 0xFF86A0B5;
+            muted2 = 0xFF6E879B;
+            line = 0x1F4CC9F0;
+            lineSoft = 0x124CC9F0;
+            cardTop = 0xFF0D1A26;
+            cardBottom = 0xFF0A1520;
+            cardBorder = 0x214CC9F0;
+            good = 0xFF85DAA4;
+            warn = 0xFFF2B86D;
+            panelTop = 0xFF10202E;
+            panelBottom = 0xFF050C13;
+            panelBorder = 0x144CC9F0;
         } else {
             accent = p.accent;
             onAccent = 0xFFFFFFFF;
@@ -102,12 +102,12 @@ final class StatusStyle {
         return d;
     }
 
-    /** The schematic panel: night is the champagne radial substrate, day a light panel (backlog 4). */
+    /** The schematic panel: night is the navy radial substrate, day a light panel (backlog 4). */
     GradientDrawable panel() {
         GradientDrawable d = new GradientDrawable();
         if (night) {
             d.setGradientType(GradientDrawable.RADIAL_GRADIENT);
-            d.setColors(new int[] { panelTop, 0xFF0D0D10, panelBottom });
+            d.setColors(new int[] { panelTop, 0xFF08121B, panelBottom });
             d.setGradientRadius(px(1300));
             d.setGradientCenter(0.5f, 0.45f);
         } else {
