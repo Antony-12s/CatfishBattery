@@ -6,8 +6,9 @@ ADB=$HOME/Android/Sdk/platform-tools/adb
 S=${SERIAL:-192.168.1.158:5566}
 JAR=${JAR:-out/becm-soh/ReadBecmDid.jar}
 car() { timeout 40 "$ADB" -s "$S" shell "$@"; }
-model=$(car getprop ro.product.model | tr -d '\r')
-case "$model" in *EX5*) ;; *) echo "Not the EX5 ($model)"; exit 1 ;; esac
+product=$(car getprop ro.build.product | tr -d '\r')
+# same rule as VehiclePlatform.java: e245 = EX5 is the only platform this read is verified on
+case "$product" in *[!a-z0-9]e245[!a-z0-9]*|e245|*[!a-z0-9]e245|e245[!a-z0-9]*) ;; *) echo "Not a Geely EX5 (e245): ro.build.product=$product"; exit 1 ;; esac
 remote=$(car mktemp -d /data/local/tmp/geely-did.XXXXXX | tr -d '\r')
 case "$remote" in /data/local/tmp/geely-did.??????) ;; *) echo "bad temp dir: $remote"; exit 1 ;; esac
 cleanup() { car "rm -f '$remote/ReadBecmDid.jar' && rmdir '$remote' && test ! -e '$remote'" && echo "Temporary client removed"; }

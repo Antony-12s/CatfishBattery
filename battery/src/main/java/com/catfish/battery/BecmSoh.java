@@ -88,6 +88,8 @@ final class BecmSoh {
 
     /** One guarded DID 496D read; throws with the reason when anything is off. */
     static double read(Context context) throws Exception {
+        // BECM 0x1635 / DID 496D is verified only on the EX5 (e245); never open the diagnostic channel elsewhere
+        if (VehiclePlatform.current() != VehiclePlatform.EX5) throw new IllegalStateException("BECM read is EX5-only");
         try (ParkGuard park = new ParkGuard(SohRecorder.carInt(context, GEAR_SELECTION), SohRecorder.carInt(context, CURRENT_GEAR))) {
             park.awaitPark();
             return readInPark(park);

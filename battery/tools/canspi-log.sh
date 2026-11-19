@@ -10,9 +10,9 @@ ADB=${ADB:-$HOME/Android/Sdk/platform-tools/adb}
 CAR_DIR=/data/local/tmp/catfish-canspi
 CAR_LOOP=/data/local/tmp/catfish-canspi-loop.sh
 
-# Only ever talk to the EX5: another adb device (V2_PRO) can be attached instead.
-SERIAL=${SERIAL:-$("$ADB" devices -l | awk 'tolower($0) ~ /ex5/ {print $1; exit}')}
-[ -n "$SERIAL" ] || { echo "No Geely EX5 on adb (set SERIAL to override)." >&2; exit 1; }
+# Only ever talk to a Geely EX5 (product code e245, see VehiclePlatform.java): another adb device can be attached.
+SERIAL=${SERIAL:-$("$ADB" devices -l | awk '/(^|[^a-z0-9])e245([^a-z0-9]|$)/ {print $1; exit}')}
+[ -n "$SERIAL" ] || { echo "No Geely EX5 (e245) on adb (set SERIAL to override)." >&2; exit 1; }
 car() { "$ADB" -s "$SERIAL" shell "$1"; }
 running() { car "p=\$(cat $CAR_DIR/pid 2>/dev/null) && kill -0 \$p 2>/dev/null && echo yes" | grep -q yes; }
 

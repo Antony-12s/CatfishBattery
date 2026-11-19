@@ -471,6 +471,7 @@ final class SettingsPage extends FrameLayout {
         row.setGravity(Gravity.TOP);
         LinearLayout info = ui.column();
         info.addView(h3("Catfish Battery", "Battery, charging and health for the Geely EX5. Read-only: it never writes to the car."));
+        fact(info, "Vehicle", VehiclePlatform.label(android.os.Build.PRODUCT), false);
         fact(info, "Version", BuildConfig.VERSION_NAME + " (build " + BuildConfig.VERSION_CODE + ")", false);
         fact(info, "Built", UiFormat.dateTime(BuildConfig.BUILD_TIME, TimeZone.getDefault()), false);
         fact(info, "Commit", BuildConfig.GIT_COMMIT, true);
