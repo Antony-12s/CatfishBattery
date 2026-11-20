@@ -60,6 +60,7 @@ public class ApvpBatteryStreamTest {
             @Override public void scalar(int id, double value) { got.add(new double[]{id, value}); }
             @Override public void cells(int[] payload) { }
             @Override public void cellTemps(int[] payload) { }
+            @Override public void cellTemp(int sensor, int tempC) { }
             @Override public void connected(boolean connected) { }
         };
     }

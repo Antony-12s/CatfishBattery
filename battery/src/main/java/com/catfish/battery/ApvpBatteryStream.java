@@ -17,6 +17,7 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -35,21 +36,70 @@ final class ApvpBatteryStream implements AutoCloseable {
     static final int CELL_UI_ARRAY = 309332894, CELL_TEMP_ARRAY = 309332892;
     // the BMS's own highest / lowest cell voltage (V); the VHAL cache never carried them on this car
     static final int CELL_U_MAX = 308282814, CELL_U_MIN = 308282816;
+    // HvBattCellTInfoHvBattTSnsrNr / HvBattCellTInfoHvBattSnsrT (ids from build 244520); internal keys, never scalars
+    static final int CELL_T_SENSOR = 306185635, CELL_T_VALUE = 306185640;
     private static final int[] IDS = {308282803,308282801,CELL_UI_ARRAY,CELL_TEMP_ARRAY,308282837,308282838,308282836,308282129,308282181,306185790,308282947,308282958,306185644,308282795,
             306184675,306184674,306184676,308281832,308282990,306184741,306185030,308282798,
             306185657,306185799,308282952,308282950,306185797,306185645,306184632,306184633,308282806,306185647,308282987,291504192,308282946,308282944,306185807,306185808,306185842,
-            308282810,306185663,CELL_U_MAX,CELL_U_MIN};
+            308282810,306185663,CELL_U_MAX,CELL_U_MIN,CELL_T_SENSOR,CELL_T_VALUE};
     private static final String[] NAMES = {"HvBattUDc","HvBattIDc1","PA_HvBattCellUIInfo_Res","PA_HvBattCellTinfo_Res","HvBattTMax","HvBattTMin","HvBattTAvg","VehBattUSysU","BattSocRaw","DcDcActvd","IDcDcActHiSide","IDcDcActLoSideIDcDcActLoSide","DCChrgSt","DCChaPwrAct",
             "HvCabinThermPwrCns","HvBattThermPwrCns","HvConvPwrAct","IsgIDc","IsgUDc","TotDrvPwrAct","BattCpEstimdRaw","HvBattCap",
             "HvSysRlyStsHvSysRlySts","OnBdChrgrSt","OnBdChrgrUAct","OnBdChrgrIAct","OnBdChrgrHndlSts1","DCChrgnHndlSts","ChrgLidAcSts","ChrgLidDCorAcDcSts","TotSingleChrgEgy","HvBattChrgnTiEstimd","RemnTiOfDrvChrg","PrpsnHvBattUsgOfChrgTarSOC","DchaUAct","DchaIAct","DischrgPwrExceedWarn","DischrgPwrExceedFlt","HvBattFullChrgCaution",
             // pack SOC: VHAL only pushes its SOC on change, so after a restart while parked it stayed "--"; APVP sends it on subscribe
             "HvBattSoc",
             // number of the highest cell, so the schematic names the BMS's own max instead of guessing among equal samples
-            "HvBattVoltMaxSerlNr","CellUMax","CellUMin"};
+            "HvBattVoltMaxSerlNr","CellUMax","CellUMin",
+            // per-sensor cell temperature as two plain signals (build 244520 has no PA_HvBattCellTinfo_Res struct)
+            "HvBattCellTInfoHvBattTSnsrNr","HvBattCellTInfoHvBattSnsrT"};
+    private static final String CELL_TEMP_STRUCT = "PA_HvBattCellTinfo_Res";
+
+    /** What is actually sent: the car's id and spelling per {@link #IDS} index; null name = not subscribed. */
+    static final class Plan {
+        final int[] ids = new int[IDS.length];
+        final String[] names = new String[IDS.length];
+        final List<String> missing = new ArrayList<>();
+        int resolved;
+    }
+    /** The hardcoded table (fw 1.2/1.3 era); used when the car's signal_config.json cannot be read. */
+    static final Plan BUILT_IN = plan(null);
+
+    private static boolean plainCellTemp(int index) { return IDS[index] == CELL_T_SENSOR || IDS[index] == CELL_T_VALUE; }
+
+    /**
+     * Resolves every signal by name in the car's table. Signals the car does not list are left out instead of
+     * guessed. The plain cell-temperature pair is only used when the struct is absent; with no table the
+     * built-in ids and names are sent unchanged (the old behaviour).
+     */
+    static Plan plan(Map<String, Integer> table) {
+        Plan plan = new Plan();
+        boolean plainTemps = table != null && !table.containsKey(CELL_TEMP_STRUCT);
+        for (int i = 0; i < IDS.length; i++) {
+            if (table == null) {
+                if (!plainCellTemp(i)) { plan.ids[i] = IDS[i]; plan.names[i] = NAMES[i]; plan.resolved++; }
+                continue;
+            }
+            if (plainCellTemp(i) && !plainTemps) continue;
+            String name = ApvpSignalConfig.carName(table, NAMES[i]);
+            if (name == null) { plan.missing.add(NAMES[i]); continue; }
+            plan.ids[i] = table.get(name); plan.names[i] = name; plan.resolved++;
+        }
+        return plan;
+    }
+
+    static Plan resolvePlan() {
+        Map<String, Integer> table = ApvpSignalConfig.load(ApvpSignalConfig.ROOT);
+        if (table == null) { Log.i(TAG, "No APVP signal table; using built-in signal ids"); return BUILT_IN; }
+        Plan plan = plan(table);
+        if (plan.resolved == 0) { Log.w(TAG, "APVP signal table has none of the battery signals; using built-in ids"); return BUILT_IN; }
+        Log.i(TAG, "APVP signals resolved from the car: " + plan.resolved + ", not on this car: " + plan.missing);
+        return plan;
+    }
     interface Listener {
         void scalar(int id, double value);
         void cells(int[] payload);
         void cellTemps(int[] payload);
+        /** One sensor (1..12) from the plain HvBattCellTInfo pair, both taken from the same update. */
+        void cellTemp(int sensor, int tempC);
         void connected(boolean connected);
     }
     private final Listener listener;
@@ -61,6 +111,7 @@ final class ApvpBatteryStream implements AutoCloseable {
     private volatile long generation;
     private ManagedChannel channel;
     private ClientCall<byte[], byte[]> call;
+    private Plan plan;
 
 
     ApvpBatteryStream(Listener listener) { this.listener = listener; worker.execute(this::connect); }
@@ -89,13 +140,15 @@ final class ApvpBatteryStream implements AutoCloseable {
         final long attempt = ++generation;
         try {
             releaseTransport();
+            if (plan == null) plan = resolvePlan();
+            final Plan active = plan;
             channel = OkHttpChannelBuilder.forAddress(HOST, PORT).usePlaintext().build();
             call = channel.newCall(DESCRIPTOR, CallOptions.DEFAULT);
             StreamObserver<byte[]> response = new StreamObserver<byte[]>() {
                 @Override public void onNext(byte[] value) {
                     if (closed || attempt != generation) return;
                     try {
-                        decodeUpdate(value, listener);
+                        decodeUpdate(value, active, listener);
                         if (!healthy) { healthy = true; listener.connected(true); Log.i(TAG, "APVP battery subscription receiving"); }
                     } catch (RuntimeException e) { Log.w(TAG, "Rejected malformed APVP battery payload", e); }
                 }
@@ -103,7 +156,7 @@ final class ApvpBatteryStream implements AutoCloseable {
                 @Override public void onCompleted() { dropped(attempt); }
             };
             StreamObserver<byte[]> request = ClientCalls.asyncBidiStreamingCall(call, response);
-            request.onNext(subscription());
+            request.onNext(subscription(active));
         } catch (Exception e) {
             healthy = false; listener.connected(false);
             Log.w(TAG, "APVP battery connection unavailable", e);
@@ -118,12 +171,15 @@ final class ApvpBatteryStream implements AutoCloseable {
         worker.schedule(this::connect, 5, TimeUnit.SECONDS);
     }
 
-    static byte[] subscription() {
+    static byte[] subscription() { return subscription(BUILT_IN); }
+
+    static byte[] subscription(Plan plan) {
         ByteArrayOutputStream out=new ByteArrayOutputStream();
         // ListenerRequest: mode=0 (selected IDs), repeated SignalIdentify at field 2.
         for(int i=0;i<IDS.length;i++) {
+            if(plan.names[i]==null) continue;
             ByteArrayOutputStream id=new ByteArrayOutputStream();
-            varint(id,8); varint(id,IDS[i]); field(id,2,NAMES[i].getBytes(StandardCharsets.UTF_8));
+            varint(id,8); varint(id,plan.ids[i]); field(id,2,plan.names[i].getBytes(StandardCharsets.UTF_8));
             field(out,2,id.toByteArray());
         }
         return out.toByteArray();
@@ -136,14 +192,31 @@ final class ApvpBatteryStream implements AutoCloseable {
         varint(out,tag*8+2);varint(out,value.length);out.write(value,0,value.length);
     }
 
-    static void decodeUpdate(byte[] raw,Listener listener) {
+    static void decodeUpdate(byte[] raw,Listener listener) { decodeUpdate(raw,BUILT_IN,listener); }
+
+    static void decodeUpdate(byte[] raw,Plan plan,Listener listener) {
         // Transfer stream: repeated update at field 1, repeated Signal at update field 3.
-        for(Field update:fields(raw)) if(update.tag==1 && update.bytes!=null)
+        for(Field update:fields(raw)) if(update.tag==1 && update.bytes!=null) {
+            // sensor number and temperature are only paired when they arrive together, never across updates
+            double[] pair={Double.NaN,Double.NaN};
             for(Field signal:fields(update.bytes)) if(signal.tag==3 && signal.bytes!=null)
-                decodeSignal(signal.bytes,listener);
+                decodeSignal(signal.bytes,plan,listener,pair);
+            int[] temp=cellTempPair(pair);
+            if(temp!=null) listener.cellTemp(temp[0],temp[1]);
+        }
     }
 
-    static void decodeSignal(byte[] raw,Listener listener) {
+    /** {sensor 1..12, degC -40..120} from an integral sensor number and temperature, else null. */
+    static int[] cellTempPair(double[] pair) {
+        double sensor=pair[0],temp=pair[1];
+        if(!Double.isFinite(sensor) || !Double.isFinite(temp) || sensor!=Math.rint(sensor)) return null;
+        if(sensor<1 || sensor>VehicleBatteryReader.EXPECTED_CELL_TEMP_COUNT || temp<-40 || temp>120) return null;
+        return new int[]{(int)sensor,(int)Math.round(temp)};
+    }
+
+    static void decodeSignal(byte[] raw,Listener listener) { decodeSignal(raw,BUILT_IN,listener,null); }
+
+    static void decodeSignal(byte[] raw,Plan plan,Listener listener,double[] pair) {
         int id=0;String name="";byte[] floats=null,bytes=null;Long integer=null,varint=null;
         for(Field f:fields(raw)) {
             if(f.tag==1 && f.bytes!=null) {
@@ -162,16 +235,25 @@ final class ApvpBatteryStream implements AutoCloseable {
         }
         // Match by signal name: firmware 1.3 replies with shifted ids for new subscriptions (asked 308282803 for
         // HvBattUDc, got 308282804; cell arrays +16; sniffed 2026-11-10). The id is only the fallback for a nameless reply.
-        int index=-1;for(int i=0;i<IDS.length;i++) if(name.isEmpty()?id==IDS[i]:name.equals(NAMES[i])) index=i;
+        // Replies are reported under the app's own id (IDS), whatever id this firmware uses.
+        int index=-1;for(int i=0;i<IDS.length;i++) {
+            if(plan.names[i]==null) continue;
+            if(name.isEmpty()?id==plan.ids[i]:name.equals(plan.names[i]) || name.equals(NAMES[i])) index=i;
+        }
         if(index<0) return;
         id=IDS[index];
         boolean struct=id==CELL_UI_ARRAY || id==CELL_TEMP_ARRAY;
+        Double scalar=null;
         if(!struct && floats!=null && floats.length==4) {
             float value=ByteBuffer.wrap(floats).order(ByteOrder.LITTLE_ENDIAN).getFloat();
-            if(Float.isFinite(value)) listener.scalar(id,value);
+            if(Float.isFinite(value)) scalar=(double)value;
         } else if(!struct && floats==null) {
             Long value=integer!=null?integer:varint;
-            if(value!=null) listener.scalar(id,(double)value);
+            if(value!=null) scalar=(double)value;
+        }
+        if(scalar!=null) {
+            if(id==CELL_T_SENSOR || id==CELL_T_VALUE) { if(pair!=null) pair[id==CELL_T_SENSOR?0:1]=scalar; }
+            else listener.scalar(id,scalar);
         }
         if(struct && bytes!=null) {
             int[] data=structData(bytes,id==CELL_UI_ARRAY?24:6);
