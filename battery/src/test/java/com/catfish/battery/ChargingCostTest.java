@@ -89,4 +89,24 @@ public class ChargingCostTest {
     static JSONObject session(long mid, boolean parked) throws Exception {
         return new JSONObject("{\"type\":\"ac\",\"start\":" + mid + ",\"end\":" + mid + ",\"parked\":" + parked + "}");
     }
+
+    @Test
+    public void subunitRatesAndSmallCostsFormatAccurately() throws Exception {
+        JSONObject audSub = new JSONObject("{\"currency\":\"AUD\",\"priceUnit\":\"sub\",\"chargers\":["
+                + "{\"id\":\"home\",\"name\":\"Home\",\"price\":0.05,\"tou\":false,\"peak\":0,\"offPeak\":0}],"
+                + "\"ac\":\"home\",\"dc\":\"home\",\"lossAc\":0,\"lossDc\":0}");
+        ChargingCost c = new ChargingCost(audSub, BKK);
+        assertEquals("5 c/kWh", c.rateText(0.05));
+        assertEquals("5.5 c/kWh", c.rateText(0.055));
+        assertEquals("29.11 c/kWh", c.rateText(0.2911));
+        assertEquals("5.6 c", c.avgPriceValue(0.0556));
+        assertEquals("A$0.50", c.money(c.chargeCost(session(WED_NOON, false), 10.0)));
+        assertEquals("A$0.05", c.money(0.05));
+        assertEquals("A$0.0", c.money(0.0));
+
+        ChargingCost usdSub = new ChargingCost(new JSONObject("{\"currency\":\"USD\",\"priceUnit\":\"sub\",\"chargers\":[]}"), BKK);
+        assertEquals("5 \u00a2/kWh", usdSub.rateText(0.05));
+        ChargingCost gbpSub = new ChargingCost(new JSONObject("{\"currency\":\"GBP\",\"priceUnit\":\"sub\",\"chargers\":[]}"), BKK);
+        assertEquals("7 p/kWh", gbpSub.rateText(0.07));
+    }
 }

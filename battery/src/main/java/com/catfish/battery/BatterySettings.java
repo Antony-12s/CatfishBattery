@@ -19,6 +19,8 @@ import java.util.TimeZone;
 final class BatterySettings {
     static final List<String> CURRENCIES = Arrays.asList(
             "THB", "USD", "EUR", "GBP", "JPY", "CNY", "MYR", "SGD", "LAK", "VND", "IDR", "PHP", "INR", "AUD", "KRW");
+    /** Price entry and rate display unit: main currency (e.g. $/kWh) or subunit (e.g. ¢/kWh) when supported. */
+    static final List<String> PRICE_UNITS = Arrays.asList("main", "sub");
     /** Automatic totals reset: off, every month on resetDay, or every resetMonths months on resetDay. */
     static final List<String> RESET_MODES = Arrays.asList("off", "monthly", "months");
     private static final int NAME_MAX = 40;
@@ -34,7 +36,10 @@ final class BatterySettings {
         try {
             JSONObject out = new JSONObject();
             String currency = in.optString("currency", "THB");
-            out.put("currency", CURRENCIES.contains(currency) ? currency : "THB");
+            String cleanCurrency = CURRENCIES.contains(currency) ? currency : "THB";
+            out.put("currency", cleanCurrency);
+            String priceUnit = in.optString("priceUnit", "main");
+            out.put("priceUnit", "sub".equals(priceUnit) && ChargingCost.subunit(cleanCurrency) != null ? "sub" : "main");
             JSONArray chargers = new JSONArray();
             Set<String> ids = new HashSet<>();
             JSONArray list = in.optJSONArray("chargers");

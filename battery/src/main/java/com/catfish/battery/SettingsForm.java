@@ -38,6 +38,7 @@ final class SettingsForm {
     static final int[] ALERT_STEPS = { 0, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100 };
 
     String currency = "THB";
+    String priceUnit = "main";
     final List<Charger> chargers = new ArrayList<>();
     String ac = "", dc = "";
     String lossAc = "", lossDc = "", budget = "";
@@ -45,17 +46,54 @@ final class SettingsForm {
     String resetMode = "off";
     int resetDay = 1, resetMonths = 2;
 
+    boolean hasSubunit() { return ChargingCost.subunit(currency) != null; }
+
+    boolean inSubunit() { return "sub".equals(priceUnit) && hasSubunit(); }
+
+    /** Switches between main currency ("main") and subunit ("sub"), converting typed charger prices accurately. */
+    boolean setPriceUnit(String nextUnit) {
+        boolean wantSub = "sub".equals(nextUnit) && hasSubunit();
+        boolean wasSub = inSubunit();
+        if (wantSub == wasSub) return false;
+        priceUnit = wantSub ? "sub" : "main";
+        for (Charger c : chargers) {
+            c.price = convertPrice(c.price, wasSub, wantSub);
+            c.offPeak = convertPrice(c.offPeak, wasSub, wantSub);
+            c.peak = convertPrice(c.peak, wasSub, wantSub);
+        }
+        return true;
+    }
+
+    /** Switches currency; drops subunit mode if the new currency does not support one. */
+    boolean setCurrency(String nextCurrency) {
+        if (nextCurrency == null || nextCurrency.equals(currency)) return false;
+        boolean wasSub = inSubunit();
+        currency = nextCurrency;
+        if (wasSub && !hasSubunit()) {
+            priceUnit = "main";
+            for (Charger c : chargers) {
+                c.price = convertPrice(c.price, true, false);
+                c.offPeak = convertPrice(c.offPeak, true, false);
+                c.peak = convertPrice(c.peak, true, false);
+            }
+        }
+        return true;
+    }
+
     /** The form for a settings object (the "settings" of BatteryDataHub.settingsJson(), already clean). */
     static SettingsForm from(JSONObject s) {
         SettingsForm f = new SettingsForm();
         if (s == null) s = new JSONObject();
         f.currency = s.optString("currency", "THB");
+        String unit = s.optString("priceUnit", "main");
+        f.priceUnit = "sub".equals(unit) && ChargingCost.subunit(f.currency) != null ? "sub" : "main";
+        boolean sub = f.inSubunit();
         JSONArray list = s.optJSONArray("chargers");
         for (int i = 0; list != null && i < list.length(); i++) {
             JSONObject c = list.optJSONObject(i);
             if (c == null) continue;
-            f.chargers.add(new Charger(c.optString("id"), c.optString("name"), shown(c.optDouble("price", 0)),
-                    c.optBoolean("tou"), shown(c.optDouble("offPeak", 0)), shown(c.optDouble("peak", 0))));
+            f.chargers.add(new Charger(c.optString("id"), c.optString("name"), shownPrice(c.optDouble("price", 0), sub),
+                    c.optBoolean("tou"), shownPrice(c.optDouble("offPeak", 0), sub), shownPrice(c.optDouble("peak", 0), sub)));
         }
         f.ac = s.optString("ac");
         f.dc = s.optString("dc");
@@ -70,15 +108,17 @@ final class SettingsForm {
         return f;
     }
 
-    /** What Save sends; the months count only in the every-N-months mode. */
+    /** What Save sends; charger prices are always saved in major currency units. */
     JSONObject toJson() {
         try {
+            boolean sub = inSubunit();
             JSONArray list = new JSONArray();
             for (Charger c : chargers) {
-                list.put(new JSONObject().put("id", c.id).put("name", c.name.trim()).put("price", priceOf(c.price))
-                        .put("tou", c.tou).put("offPeak", priceOf(c.offPeak)).put("peak", priceOf(c.peak)));
+                list.put(new JSONObject().put("id", c.id).put("name", c.name.trim()).put("price", mainPriceOf(c.price, sub))
+                        .put("tou", c.tou).put("offPeak", mainPriceOf(c.offPeak, sub)).put("peak", mainPriceOf(c.peak, sub)));
             }
-            return new JSONObject().put("currency", currency).put("chargers", list).put("ac", ac).put("dc", dc)
+            return new JSONObject().put("currency", currency).put("priceUnit", sub ? "sub" : "main")
+                    .put("chargers", list).put("ac", ac).put("dc", dc)
                     .put("lossAc", priceOf(lossAc)).put("lossDc", priceOf(lossDc)).put("budget", priceOf(budget))
                     .put("alertSoc", alertSoc).put("resetMode", resetMode).put("resetDay", resetDay)
                     .put("resetMonths", "months".equals(resetMode) ? resetMonths : 1);
@@ -123,7 +163,8 @@ final class SettingsForm {
         JSONObject clean;
         try { clean = new JSONObject(BatterySettings.clean(sent.toString())); }
         catch (JSONException e) { return out; }
-        for (String k : new String[] { "lossAc", "lossDc", "budget" }) number(out, k, sent, clean, k);
+        for (String k : new String[] { "lossAc", "lossDc", "budget" }) number(out, k, sent, clean, k, false);
+        boolean sub = inSubunit();
         JSONArray a = sent.optJSONArray("chargers"), b = clean.optJSONArray("chargers");
         for (int i = 0; a != null && b != null && i < a.length(); i++) {
             JSONObject x = a.optJSONObject(i), y = null;
@@ -131,14 +172,14 @@ final class SettingsForm {
             if (y == null) continue;
             String key = "charger." + x.optString("id") + ".";
             if (!x.optString("name").equals(y.optString("name"))) out.put(key + "name", "Saved as " + y.optString("name"));
-            for (String k : new String[] { "price", "offPeak", "peak" }) number(out, key + k, x, y, k);
+            for (String k : new String[] { "price", "offPeak", "peak" }) number(out, key + k, x, y, k, sub);
         }
         return out;
     }
 
-    private static void number(Map<String, String> out, String key, JSONObject sent, JSONObject clean, String k) {
+    private static void number(Map<String, String> out, String key, JSONObject sent, JSONObject clean, String k, boolean sub) {
         double a = sent.optDouble(k, 0), b = clean.optDouble(k, 0);
-        if (Math.abs(a - b) > 1e-9) out.put(key, "Saved as " + (b == 0 ? "0" : shown(b)));
+        if (Math.abs(a - b) > 1e-9) out.put(key, "Saved as " + (b == 0 ? "0" : shownPrice(b, sub)));
     }
 
     /** The Auto reset line: the next date comes from the app after a save; before that the change is pending. */
@@ -186,6 +227,21 @@ final class SettingsForm {
         return BigDecimal.valueOf(v).stripTrailingZeros().toPlainString();
     }
 
+    /** A charger price (stored in major units) shown in either major units or subunits (x100, exact). */
+    static String shownPrice(double mainValue, boolean sub) {
+        if (Double.isNaN(mainValue) || Double.isInfinite(mainValue) || mainValue == 0) return "";
+        BigDecimal bd = BigDecimal.valueOf(mainValue);
+        if (sub) bd = bd.movePointRight(2);
+        return bd.stripTrailingZeros().toPlainString();
+    }
+
+    /** Converts a typed price between main and subunit modes without floating-point drift. */
+    private static String convertPrice(String raw, boolean fromSub, boolean toSub) {
+        if (fromSub == toSub || raw == null || raw.isEmpty()) return raw == null ? "" : raw;
+        double main = mainPriceOf(raw, fromSub);
+        return main == 0 ? "" : shownPrice(main, toSub);
+    }
+
     /** What a price box shows while typing: the car's number pad has no point, so any run of non-digits is one. */
     static String priceText(String v) {
         String s = (v == null ? "" : v).replaceAll("[^0-9]+", ".");
@@ -197,11 +253,18 @@ final class SettingsForm {
 
     /** A typed price as a number; 0 when nothing parses (the WebView's numOf). */
     static double priceOf(String v) {
+        return mainPriceOf(v, false);
+    }
+
+    /** A typed price converted to major currency units (dividing by 100 when entered in subunits). */
+    static double mainPriceOf(String v, boolean sub) {
         String s = (v == null ? "" : v.trim()).replaceFirst("[^0-9]+", ".");
         Matcher m = NUMBER.matcher(s);
         String n = m.find() ? m.group() : "";
         if (n.isEmpty() || ".".equals(n)) return 0;
-        double d = Double.parseDouble(n.endsWith(".") ? n + "0" : n);
-        return Double.isInfinite(d) ? 0 : d;
+        BigDecimal bd = new BigDecimal(n.endsWith(".") ? n + "0" : n);
+        if (sub) bd = bd.movePointLeft(2);
+        double d = bd.doubleValue();
+        return Double.isInfinite(d) || Double.isNaN(d) ? 0 : d;
     }
 }

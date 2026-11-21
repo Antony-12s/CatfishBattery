@@ -16,10 +16,38 @@ import java.util.TimeZone;
  */
 final class ChargingCost {
     static final Map<String, String> CURRENCY = new LinkedHashMap<>();
+    /** Minor currency unit (1/100th of the main unit) for currencies commonly priced in cents/pence/sen per kWh. */
+    static final Map<String, String> SUBUNIT = new LinkedHashMap<>();
     static {
         String[] pairs = { "THB", "฿", "USD", "$", "EUR", "€", "GBP", "£", "JPY", "¥", "CNY", "¥", "MYR", "RM",
                 "SGD", "S$", "LAK", "₭", "VND", "₫", "IDR", "Rp", "PHP", "₱", "INR", "₹", "AUD", "A$", "KRW", "₩" };
         for (int i = 0; i < pairs.length; i += 2) CURRENCY.put(pairs[i], pairs[i + 1]);
+        String[] subs = { "USD", "¢", "EUR", "c", "GBP", "p", "MYR", "sen", "SGD", "¢", "AUD", "c" };
+        for (int i = 0; i < subs.length; i += 2) SUBUNIT.put(subs[i], subs[i + 1]);
+    }
+
+    /** Subunit symbol (e.g. "¢" for USD, "c" for AUD, "p" for GBP) or null when the currency has none. */
+    static String subunit(String currency) { return currency == null ? null : SUBUNIT.get(currency); }
+
+    /** Whether rates are entered and shown in subunits (cents/pence/sen per kWh) instead of the main unit. */
+    static boolean priceInSubunit(JSONObject settings) {
+        return settings != null && "sub".equals(settings.optString("priceUnit"))
+                && subunit(settings.optString("currency")) != null;
+    }
+
+    /** Formats a rate (stored in major units) in subunits: "5 c/kWh", "5.5 ¢/kWh", "29.11 ¢/kWh". */
+    static String formatSubunitRate(double rate, String subSymbol) {
+        double sub = rate * 100;
+        int decimals = Math.abs(sub - Math.round(sub)) < 1e-6 ? 0
+                : Math.abs(sub * 10 - Math.round(sub * 10)) < 1e-6 ? 1 : 2;
+        return UiFormat.fixed(sub, decimals, " " + subSymbol + "/kWh");
+    }
+
+    /** Formats a rate (stored in major units) in either main units or subunits. */
+    static String formatRate(double rate, String symbol, String subSymbol) {
+        if (subSymbol != null) return formatSubunitRate(rate, subSymbol);
+        boolean two = Math.abs(rate * 100 - Math.round(rate * 100)) < 1e-6;
+        return UiFormat.fixed(rate, two ? 2 : 3, " " + symbol + "/kWh");
     }
 
     private final JSONObject settings;
@@ -51,14 +79,31 @@ final class ChargingCost {
         return s == null ? "฿" : s;
     }
 
-    /** One decimal under 100, then whole numbers grouped like en-US; "--" when unknown. */
+    boolean inSubunit() { return priceInSubunit(settings); }
+
+    String subunitSymbol() { return settings == null ? null : subunit(settings.optString("currency")); }
+
+    /** Two decimals for non-zero values under 1, one decimal under 100, then grouped whole numbers; "--" when unknown. */
     String money(Double v) {
         if (!finite(v)) return UiFormat.MISSING;
-        return symbol() + (Math.abs(v) < 100 ? UiFormat.fixed(v, 1, "")
+        double abs = Math.abs(v);
+        if (abs > 0 && abs < 1) return symbol() + UiFormat.fixed(v, 2, "");
+        return symbol() + (abs < 100 ? UiFormat.fixed(v, 1, "")
                 : String.format(Locale.US, "%,d", Math.round(v)).replace('-', '\u2212'));
     }
 
-    String rateText(double rate) { return String.format(Locale.ROOT, "%.2f", rate) + " " + symbol() + "/kWh"; }
+    String rateText(double rate) {
+        return formatRate(rate, symbol(), inSubunit() ? subunitSymbol() : null);
+    }
+
+    /** Average price KPI value (paired with "/kWh" unit): "5.6 c" in subunit mode, "$0.05" under 1, else money(). */
+    String avgPriceValue(double avg) {
+        if (inSubunit()) {
+            double sub = avg * 100;
+            return UiFormat.fixed(sub, Math.abs(sub) < 100 ? 1 : 0, " " + subunitSymbol());
+        }
+        return money(avg);
+    }
 
     /** The charge's charger: the driver's pick, else the default for its kind (a parked charge goes with AC). */
     JSONObject chargerOf(JSONObject session) {

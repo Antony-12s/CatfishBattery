@@ -140,4 +140,18 @@ public class HistoryModelTest {
         assertEquals("99.9 kWh", HistoryModel.kwhText(99.94));
         assertEquals("120 kWh", HistoryModel.kwhText(120.4));
     }
+
+    @Test
+    public void subunitModeFormatsAveragePriceAndPickerInCents() throws Exception {
+        JSONObject settings = new JSONObject("{\"currency\":\"AUD\",\"priceUnit\":\"sub\",\"chargers\":["
+                + "{\"id\":\"home\",\"name\":\"Home\",\"price\":0.05,\"tou\":false,\"peak\":0,\"offPeak\":0}],"
+                + "\"ac\":\"home\",\"dc\":\"home\",\"lossAc\":0,\"lossDc\":0,\"budget\":0,\"alertSoc\":0}");
+        JSONObject d = new JSONObject("{\"sessions\":[" + row(WED - DAY, "ac", "null", false) + "],\"live\":null}");
+        HistoryModel m = new HistoryModel(d, new ChargingCost(settings, ChargingCostTest.BKK), WED, ChargingCostTest.BKK);
+        List<HistoryModel.Kpi> k = m.kpis();
+        assertEquals("A$1.0", k.get(0).value);
+        assertEquals("5.0 c", k.get(1).value);
+        assertEquals("/kWh", k.get(1).unit);
+        assertEquals("5 c/kWh", m.picker(WED - DAY).options.get(1).detail);
+    }
 }

@@ -56,6 +56,7 @@ final class StatusFacts {
         regenReal = regenWh != null && regenWh > 0; // green only for energy regen really put back
         // cost is what the driving took: energy out of the pack less what regen put back, at the home (AC) rate
         String symbol = settings == null ? "\u0e3f" : CURRENCY.getOrDefault(settings.optString("currency"), "\u0e3f");
+        String subSymbol = ChargingCost.priceInSubunit(settings) ? ChargingCost.subunit(settings.optString("currency")) : null;
         Double rate = homeRate(settings);
         Double driveCost = null;
         if (usedWh != null && regenWh != null && rate != null && rate > 0) {
@@ -63,7 +64,7 @@ final class StatusFacts {
             driveCost = (usedWh - regenWh) / 1000 / (1 - (Double.isNaN(loss) ? 0 : loss) / 100) * rate;
         }
         cost = StatusFormat.money(driveCost, symbol);
-        costNote = rate != null && rate > 0 ? StatusFormat.rate(rate, symbol) : "no price set";
+        costNote = rate != null && rate > 0 ? ChargingCost.formatRate(rate, symbol, subSymbol) : "no price set";
         Double s = num(totals, "since");
         since = StatusFormat.since(s == null ? 0 : s.longValue(), zone);
     }
