@@ -153,4 +153,59 @@ public class SettingsFormTest {
         f.resetMode = "off";
         assertEquals("Auto reset off", f.totalsSummary());
     }
+
+    @Test
+    public void subunitModeEntersCentsAndSavesMajorUnits() throws Exception {
+        JSONObject saved = new JSONObject("{\"currency\":\"AUD\",\"priceUnit\":\"sub\",\"chargers\":["
+                + "{\"id\":\"home\",\"name\":\"Home\",\"price\":0.05,\"tou\":true,\"peak\":0.355,\"offPeak\":0.08}],"
+                + "\"ac\":\"home\",\"dc\":\"home\",\"lossAc\":0,\"lossDc\":0,\"budget\":100,\"alertSoc\":0}");
+        SettingsForm f = SettingsForm.from(saved);
+        assertTrue(f.inSubunit());
+        assertEquals("5", f.chargers.get(0).price);
+        assertEquals("8", f.chargers.get(0).offPeak);
+        assertEquals("35.5", f.chargers.get(0).peak);
+        assertEquals("100", f.budget); // budget stays in major units
+
+        f.chargers.get(0).price = "5";
+        f.chargers.get(0).offPeak = "5.5";
+        f.chargers.get(0).peak = "64.9";
+        JSONObject out = f.toJson();
+        assertEquals("sub", out.getString("priceUnit"));
+        JSONObject home = out.getJSONArray("chargers").getJSONObject(0);
+        assertEquals(0.05, home.getDouble("price"), 1e-12);
+        assertEquals(0.055, home.getDouble("offPeak"), 1e-12);
+        assertEquals(0.649, home.getDouble("peak"), 1e-12);
+    }
+
+    @Test
+    public void switchingPriceUnitAndCurrencyConvertsPricesWithoutDrift() throws Exception {
+        SettingsForm f = SettingsForm.from(new JSONObject("{\"currency\":\"USD\",\"chargers\":["
+                + "{\"id\":\"home\",\"name\":\"Home\",\"price\":0.05,\"tou\":false,\"peak\":0,\"offPeak\":0},"
+                + "{\"id\":\"dc\",\"name\":\"Fast\",\"price\":0.649,\"tou\":false,\"peak\":0,\"offPeak\":0}]}"));
+        assertFalse(f.inSubunit());
+        assertTrue(f.setPriceUnit("sub"));
+        assertTrue(f.inSubunit());
+        assertEquals("5", f.chargers.get(0).price);
+        assertEquals("64.9", f.chargers.get(1).price);
+        assertEquals("", f.chargers.get(0).peak);
+
+        assertTrue(f.setPriceUnit("main"));
+        assertFalse(f.inSubunit());
+        assertEquals("0.05", f.chargers.get(0).price);
+        assertEquals("0.649", f.chargers.get(1).price);
+
+        assertTrue(f.setPriceUnit("sub"));
+        assertTrue(f.setCurrency("THB")); // no subunit -> drops back to main
+        assertFalse(f.inSubunit());
+        assertEquals("0.05", f.chargers.get(0).price);
+        assertFalse(f.setPriceUnit("sub"));
+    }
+
+    @Test
+    public void issuesReportClampedPricesInTheActiveUnit() throws Exception {
+        SettingsForm f = SettingsForm.from(new JSONObject("{\"currency\":\"USD\",\"priceUnit\":\"sub\",\"chargers\":["
+                + "{\"id\":\"home\",\"name\":\"Home\",\"price\":0.05,\"tou\":false,\"peak\":0,\"offPeak\":0}]}"));
+        f.chargers.get(0).price = "999999999";
+        assertEquals("Saved as 100000000", f.issues().get("charger.home.price"));
+    }
 }

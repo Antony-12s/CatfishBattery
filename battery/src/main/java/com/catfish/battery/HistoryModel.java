@@ -69,7 +69,7 @@ final class HistoryModel {
                 share == null ? "" : budgetTone(share),
                 plural(month.size()) + " · " + kwhText(month.isEmpty() ? null : mk)
                         + (share != null ? " · " + Math.round(share * 100) + " % of budget" : "")));
-        k.add(new Kpi("Average price", avg != null ? cost.money(avg) : UiFormat.MISSING, avg != null ? "/kWh" : "", -1, "",
+        k.add(new Kpi("Average price", avg != null ? cost.avgPriceValue(avg) : UiFormat.MISSING, avg != null ? "/kWh" : "", -1, "",
                 avg != null ? "with charging losses, all charges" : all.isEmpty() ? "" : "set prices in Settings"));
         JSONObject first = all.isEmpty() ? null : all.get(0);
         k.add(new Kpi("All time", kwhText(all.isEmpty() ? null : total), plural(all.size()), -1, "",

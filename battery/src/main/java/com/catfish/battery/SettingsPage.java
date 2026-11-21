@@ -46,7 +46,7 @@ final class SettingsPage extends FrameLayout {
     private static final String[] SECTIONS = { "Region", "Preferences", "Chargers & prices", "Totals & reset", "Update", "About" };
     private static final String[] ICONS = { "\uD83C\uDF0F", "\u2699\uFE0E", "\u26A1\uFE0E", "\u21BB", "\u2B07\uFE0E", "i" };
 
-    private final LinearLayout chargersBox, prefs, totals, region, pricesBox, update;
+    private final LinearLayout priceUnitBox, chargersBox, prefs, totals, region, pricesBox, update;
     private TextView chargersNote;
     private final View[] items = new View[SECTIONS.length], panes;
     private final TextView[] summaries = new TextView[SECTIONS.length];
@@ -103,6 +103,8 @@ final class SettingsPage extends FrameLayout {
         View chargersHead = h3("Chargers & prices", TOU_NOTE);
         chargersNote = (TextView) ((LinearLayout) chargersHead).getChildAt(1);
         chargers.addView(chargersHead);
+        priceUnitBox = ui.column();
+        chargers.addView(priceUnitBox, ChargingUi.fillWidth());
         chargersBox = ui.column();
         chargers.addView(chargersBox, ChargingUi.fillWidth());
         Button add = ui.button("+ Add charger", 24, false);
@@ -214,8 +216,8 @@ final class SettingsPage extends FrameLayout {
         boolean wasBinding = binding;
         binding = true;
         prow(region, "Country", "every price and total uses its currency", spinner(labels, at, i -> {
-            if (choices.get(i)[0].equals(form.currency)) return;
-            form.currency = choices.get(i)[0];
+            if (!form.setCurrency(choices.get(i)[0])) return;
+            rebuildChargers();
             units();
             changed();
             post(this::buildRegion);
@@ -305,20 +307,21 @@ final class SettingsPage extends FrameLayout {
         return row;
     }
 
-    /** "7.40 ฿/kWh"; three decimals only when the source has them (US averages like 0.649). */
+    /** "7.40 ฿/kWh" or "64.9 ¢/kWh" when entering prices in cents; three decimals only when the source has them. */
     private String rate(double v) {
-        boolean cents = Math.abs(v * 100 - Math.round(v * 100)) < 1e-6;
-        return UiFormat.fixed(v, cents ? 2 : 3, " " + unitText());
+        String sub = form != null && form.inSubunit() ? ChargingCost.subunit(form.currency) : null;
+        return ChargingCost.formatRate(v, currencySymbol(), sub);
     }
 
     /** A new charger row filled from a network's prices; the driver still taps Save, as for any edit. */
     private void addFromNetwork(ChargerPrices.Network n) {
         SettingsForm.Charger c = form.addCharger(System.currentTimeMillis());
+        boolean sub = form.inSubunit();
         c.name = n.chargerName();
         c.tou = n.tou;
-        c.price = n.tou ? "" : SettingsForm.shown(n.price);
-        c.peak = SettingsForm.shown(n.peak);
-        c.offPeak = SettingsForm.shown(n.offPeak);
+        c.price = n.tou ? "" : SettingsForm.shownPrice(n.price, sub);
+        c.peak = SettingsForm.shownPrice(n.peak, sub);
+        c.offPeak = SettingsForm.shownPrice(n.offPeak, sub);
         binding = true;
         addRow(c);
         binding = false;
@@ -654,6 +657,7 @@ final class SettingsPage extends FrameLayout {
         errors.clear();
         unitLabels.clear();
         defaultButtons.clear();
+        buildPriceUnit();
         chargersBox.removeAllViews();
         for (SettingsForm.Charger c : form.chargers) addRow(c);
         buildPrefs();
@@ -662,6 +666,84 @@ final class SettingsPage extends FrameLayout {
         markDefaults();
         showIssues();
         summaries();
+    }
+
+    /** Rebuilds the Price unit selector and charger rows after a currency or unit switch. */
+    private void rebuildChargers() {
+        boolean wasBinding = binding;
+        binding = true;
+        buildPriceUnit();
+        chargersBox.removeAllViews();
+        errors.keySet().removeIf(k -> k.startsWith("charger."));
+        unitLabels.keySet().removeIf(k -> k.startsWith("charger."));
+        defaultButtons.clear();
+        for (SettingsForm.Charger x : form.chargers) addRow(x);
+        binding = wasBinding;
+        markDefaults();
+    }
+
+    /** Main-unit vs subunit ($/kWh vs ¢/kWh) toggle, shown for currencies with a 1/100th subunit. */
+    private void buildPriceUnit() {
+        priceUnitBox.removeAllViews();
+        if (form == null || !form.hasSubunit()) {
+            priceUnitBox.setVisibility(GONE);
+            return;
+        }
+        priceUnitBox.setVisibility(VISIBLE);
+        String mainSym = currencySymbol(), subSym = ChargingCost.subunit(form.currency);
+        String mainUnit = mainSym + "/kWh", subUnit = subSym + "/kWh";
+        boolean sub = form.inSubunit();
+
+        LinearLayout row = ui.row();
+        row.setPadding(0, ui.dp(12), 0, ui.dp(18));
+        LinearLayout text = ui.column();
+        TextView title = ui.text(24, ui.text, 700);
+        ChargingUi.set(title, "Price unit");
+        text.addView(title);
+        TextView subLine = ui.text(20, ui.muted, 400);
+        subLine.setPadding(0, ui.dp(4), ui.dp(16), 0);
+        ChargingUi.set(subLine, "enter prices in " + mainUnit + " or " + subUnit + "; totals stay in " + mainSym);
+        text.addView(subLine);
+        row.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        LinearLayout rail = ui.row();
+        rail.setPadding(ui.dp(6), ui.dp(6), ui.dp(6), ui.dp(6));
+        rail.setBackground(ui.night ? ui.box(0, 0x2E4CC9F0, 18) : ui.box(ui.panel, ui.panelEdge, 18));
+        TextView mainBtn = unitPill(mainUnit, !sub, () -> setPriceUnit("main"));
+        TextView subBtn = unitPill(subUnit, sub, () -> setPriceUnit("sub"));
+        rail.addView(mainBtn);
+        rail.addView(ui.space(8, 1));
+        rail.addView(subBtn);
+        row.addView(rail, ChargingUi.wrap());
+        priceUnitBox.addView(row, ChargingUi.fillWidth());
+        priceUnitBox.addView(ui.divider(false));
+    }
+
+    private TextView unitPill(String label, boolean on, Runnable click) {
+        TextView b = ui.text(21, ui.muted, 700);
+        b.setGravity(Gravity.CENTER);
+        b.setMinWidth(ui.dp(136));
+        b.setMinHeight(ui.dp(64));
+        b.setPadding(ui.dp(20), ui.dp(10), ui.dp(20), ui.dp(10));
+        ChargingUi.set(b, label);
+        b.setClickable(true);
+        b.setFocusable(true);
+        ui.pill(b, on, 14);
+        b.setSelected(on);
+        b.setOnClickListener(v -> click.run());
+        return b;
+    }
+
+    private void setPriceUnit(String nextUnit) {
+        if (form == null || !form.setPriceUnit(nextUnit)) return;
+        clearFocus();
+        rebuildChargers();
+        changed();
+    }
+
+    private void togglePriceUnit() {
+        if (form == null || !form.hasSubunit()) return;
+        setPriceUnit(form.inSubunit() ? "main" : "sub");
     }
 
     private void addRow(SettingsForm.Charger c) {
@@ -676,7 +758,7 @@ final class SettingsPage extends FrameLayout {
         EditText name = input(c.name, "Name", false);
         name.setFilters(new InputFilter[] { new InputFilter.LengthFilter(40) });
         name.setContentDescription("Charger name");
-        name.addTextChangedListener(watch(s -> { c.name = s; changed(); }));
+        name.addTextChangedListener(watch(false, s -> { c.name = s; changed(); }));
         main.addView(name, ChargingUi.fillWidth());
         main.addView(error("charger." + c.id + ".name"));
         LinearLayout defs = ui.row();
@@ -725,14 +807,7 @@ final class SettingsPage extends FrameLayout {
                 Toast.makeText(getContext(), "Keep at least one charger", Toast.LENGTH_SHORT).show();
                 return;
             }
-            binding = true;
-            chargersBox.removeAllViews();
-            errors.keySet().removeIf(k -> k.startsWith("charger."));
-            unitLabels.keySet().removeIf(k -> k.startsWith("charger."));
-            defaultButtons.clear();
-            for (SettingsForm.Charger x : form.chargers) addRow(x);
-            binding = false;
-            markDefaults();
+            rebuildChargers();
             changed();
         });
         LinearLayout.LayoutParams delLp = new LinearLayout.LayoutParams(ui.dp(76), ui.dp(76));
@@ -742,7 +817,7 @@ final class SettingsPage extends FrameLayout {
         chargersBox.addView(box, ChargingUi.fillWidth());
     }
 
-    /** A price box with the currency unit inside on the right and an optional caption above. */
+    /** A price box with the currency unit inside on the right (tappable to toggle cents when supported) and an optional caption above. */
     private LinearLayout priceField(SettingsForm.Charger c, String key, String placeholder, String label, String caption) {
         LinearLayout col = ui.column();
         if (caption != null) {
@@ -752,21 +827,33 @@ final class SettingsPage extends FrameLayout {
             col.addView(cap);
         }
         String value = "price".equals(key) ? c.price : "offPeak".equals(key) ? c.offPeak : c.peak;
+        boolean canToggle = form != null && form.hasSubunit();
         FrameLayout field = new FrameLayout(getContext());
         EditText e = input(value, placeholder, true);
         e.setContentDescription(label);
-        e.setPadding(ui.dp(18), 0, ui.dp(110), 0);
-        e.addTextChangedListener(watch(s -> {
+        e.setPadding(ui.dp(18), 0, ui.dp(canToggle ? 128 : 110), 0);
+        e.addTextChangedListener(watch(true, s -> {
             if ("price".equals(key)) c.price = s; else if ("offPeak".equals(key)) c.offPeak = s; else c.peak = s;
             changed();
         }));
         field.addView(e, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ui.dp(76)));
-        TextView unit = ui.text(18, ui.muted, 500);
-        unit.setPadding(0, 0, ui.dp(16), 0);
+        TextView unit = ui.text(18, canToggle ? ui.accent2 : ui.muted, canToggle ? 700 : 500);
         ChargingUi.set(unit, unitText());
+        FrameLayout.LayoutParams ulp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.END | Gravity.CENTER_VERTICAL);
+        if (canToggle) {
+            unit.setPadding(ui.dp(12), ui.dp(10), ui.dp(12), ui.dp(10));
+            unit.setBackground(ui.box(ui.night ? 0x1A4CC9F0 : 0x122368C5, ui.night ? 0x404CC9F0 : ui.panelEdge, 10));
+            unit.setClickable(true);
+            unit.setFocusable(true);
+            unit.setContentDescription("Switch price unit");
+            unit.setOnClickListener(v -> togglePriceUnit());
+            ulp.rightMargin = ui.dp(10);
+        } else {
+            unit.setPadding(0, 0, ui.dp(16), 0);
+        }
         unitLabels.put("charger." + c.id + "." + key, unit);
-        field.addView(unit, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.END | Gravity.CENTER_VERTICAL));
+        field.addView(unit, ulp);
         col.addView(field, ChargingUi.fillWidth());
         col.addView(error("charger." + c.id + "." + key));
         return col;
@@ -911,7 +998,10 @@ final class SettingsPage extends FrameLayout {
         }
     }
 
-    private String unitText() { return currencySymbol() + "/kWh"; }
+    private String unitText() {
+        String sym = form != null && form.inSubunit() ? ChargingCost.subunit(form.currency) : currencySymbol();
+        return sym + "/kWh";
+    }
 
     private String currencySymbol() {
         String s = form == null ? null : ChargingCost.CURRENCY.get(form.currency);
@@ -985,7 +1075,7 @@ final class SettingsPage extends FrameLayout {
         e.setContentDescription(label);
         boolean budget = suffix == null;
         e.setPadding(ui.dp(budget ? 52 : 18), 0, ui.dp(budget ? 18 : 70), 0);
-        e.addTextChangedListener(watch(s -> { set.accept(s); changed(); }));
+        e.addTextChangedListener(watch(true, s -> { set.accept(s); changed(); }));
         field.addView(e, new FrameLayout.LayoutParams(ui.dp(budget ? 220 : 160), ui.dp(76)));
         TextView unit = ui.text(budget ? 24 : 18, ui.muted, 600);
         if (budget) {
@@ -1032,15 +1122,14 @@ final class SettingsPage extends FrameLayout {
     }
 
     /** A watcher that keeps number boxes as SettingsForm.priceText and reports user edits only. */
-    private TextWatcher watch(java.util.function.Consumer<String> onEdit) {
+    private TextWatcher watch(boolean number, java.util.function.Consumer<String> onEdit) {
         return new TextWatcher() {
             private boolean self;
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
             @Override public void afterTextChanged(Editable s) {
                 if (self || binding) return;
-                View focused = findFocus();
-                if (focused instanceof EditText && focused.getTag() == Boolean.TRUE) {
+                if (number) {
                     String clean = SettingsForm.priceText(s.toString());
                     if (!clean.contentEquals(s)) {
                         self = true;

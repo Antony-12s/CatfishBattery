@@ -44,16 +44,18 @@ final class StatusFormat {
                 MONTHS[c.get(Calendar.MONTH)], c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE));
     }
 
-    /** Money like the web pages: one decimal under 100, whole with thousands separators from 100. */
+    /** Money: two decimals for non-zero values under 1, one decimal under 100, whole with thousands separators from 100. */
     static String money(Double value, String symbol) {
         if (value == null || value.isNaN() || value.isInfinite()) return UiFormat.MISSING;
-        if (Math.abs(value) < 100) return symbol + UiFormat.fixed(value, 1, "");
+        double abs = Math.abs(value);
+        if (abs > 0 && abs < 1) return symbol + UiFormat.fixed(value, 2, "");
+        if (abs < 100) return symbol + UiFormat.fixed(value, 1, "");
         return symbol + String.format(Locale.ROOT, "%,d", Math.round(value)).replace('-', '\u2212');
     }
 
-    /** Price per kWh, "2.50 ฿/kWh". */
+    /** Price per kWh, "2.50 ฿/kWh" (or 3 decimals when needed, e.g. "0.649 $/kWh"). */
     static String rate(double price, String symbol) {
-        return UiFormat.fixed(price, 2, " " + symbol + "/kWh");
+        return ChargingCost.formatRate(price, symbol, null);
     }
 
     /** Cell spread colour: warn from 20 mV, danger from 50 mV. */

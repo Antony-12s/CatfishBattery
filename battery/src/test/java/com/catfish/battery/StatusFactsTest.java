@@ -117,4 +117,14 @@ public class StatusFactsTest {
         assertEquals("--", f.cost);
         assertEquals("no price set", f.costNote);
     }
+
+    @Test
+    public void subunitModeShowsCentsRateAndSmallDriveCost() throws Exception {
+        String data = "{\"streamConnected\":true,\"cells\":[],\"totals\":{\"since\":0,\"usedWh\":10000,\"regenWh\":0}}";
+        String settings = "{\"settings\":{\"currency\":\"AUD\",\"priceUnit\":\"sub\",\"ac\":\"home\",\"lossAc\":0,"
+                + "\"chargers\":[{\"id\":\"home\",\"price\":0.05,\"tou\":false}]}}";
+        StatusFacts f = facts(data, settings);
+        assertEquals("A$0.50", f.cost);
+        assertEquals("5 c/kWh", f.costNote);
+    }
 }

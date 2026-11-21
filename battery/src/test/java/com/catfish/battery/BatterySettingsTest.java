@@ -110,4 +110,15 @@ public class BatterySettingsTest {
         assertEquals(at(2027, 2, 5, 0), next(at(2026, 11, 12, 9), every3));
         assertEquals(at(2027, 5, 5, 0), next(at(2027, 2, 5, 0), every3));
     }
+
+    @Test
+    public void priceUnitIsKeptOnlyForCurrenciesWithASubunit() throws Exception {
+        assertEquals("sub", clean("{\"currency\":\"AUD\",\"priceUnit\":\"sub\"}").getString("priceUnit"));
+        assertEquals("sub", clean("{\"currency\":\"USD\",\"priceUnit\":\"sub\"}").getString("priceUnit"));
+        assertEquals("sub", clean("{\"currency\":\"GBP\",\"priceUnit\":\"sub\"}").getString("priceUnit"));
+        assertEquals("main", clean("{\"currency\":\"THB\",\"priceUnit\":\"sub\"}").getString("priceUnit"));
+        assertEquals("main", clean("{\"currency\":\"JPY\",\"priceUnit\":\"sub\"}").getString("priceUnit"));
+        assertEquals("main", clean("{\"currency\":\"USD\",\"priceUnit\":\"cents\"}").getString("priceUnit"));
+        assertEquals("main", clean("{\"currency\":\"USD\"}").getString("priceUnit"));
+    }
 }
