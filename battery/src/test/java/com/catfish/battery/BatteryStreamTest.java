@@ -24,6 +24,7 @@ public class BatteryStreamTest {
         @Override public void scalar(int id, double value) { scalars.put(id, value); }
         @Override public void cells(int[] payload) { cells = payload; }
         @Override public void cellTemps(int[] payload) { temps = payload; }
+        @Override public void cellTemp(int sensor, int tempC) { }
         @Override public void connected(boolean connected) { }
     }
 

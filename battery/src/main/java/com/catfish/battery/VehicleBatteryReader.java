@@ -76,7 +76,7 @@ public final class VehicleBatteryReader {
     private final LinkedHashMap<Integer, CellSample> observedCells = new LinkedHashMap<>();
     private final LinkedHashMap<Integer, Double> observedScalars = new LinkedHashMap<>();
     private final LinkedHashMap<Integer, Long> observedAtMs = new LinkedHashMap<>();
-    /** Latest temperature per sensor 1..12 from PA_HvBattCellTinfo_Res; collected passively, never requested. */
+    /** Latest temperature per sensor 1..12 from PA_HvBattCellTinfo_Res or the plain HvBattCellTInfo pair; collected passively. */
     private final LinkedHashMap<Integer, Integer> cellTemps = new LinkedHashMap<>();
     private final Set<Integer> loggedScalarProperties = new HashSet<>();
     /** Shared VHAL stream (port 40004) that the rest of the app already listens to; attached read-only. */
@@ -119,6 +119,7 @@ public final class VehicleBatteryReader {
             @Override public void scalar(int id, double value) { acceptScalar(true,id,0,value); }
             @Override public void cells(int[] payload) { acceptCellArray(payload); }
             @Override public void cellTemps(int[] payload) { acceptCellTempArray(payload); }
+            @Override public void cellTemp(int sensor, int tempC) { acceptPlainCellTemp(sensor, tempC); }
             @Override public void connected(boolean connected) {
                 synchronized (VehicleBatteryReader.this) {
                     apvpConnected=connected;
@@ -308,6 +309,18 @@ public final class VehicleBatteryReader {
         Integer previous = cellTemps.put(decoded[0], decoded[1]);
         if (previous == null)
             Log.i(TAG, "Cell temperature sensor " + decoded[0] + " = " + decoded[1] + " C, total " +
+                    cellTemps.size() + "/" + EXPECTED_CELL_TEMP_COUNT);
+    }
+
+    /**
+     * Plain HvBattCellTInfo multiplex (firmware without the struct). Whole degrees C, no offset: on build 244520 every
+     * sensor read 20 while the float HvBattTMax/TMin read 20.5. Sensors 5-12 are coolant, bus bars, BMS board and
+     * air, so no pack min/max bound applies; cellTempPair already limits it to -40..120.
+     */
+    private synchronized void acceptPlainCellTemp(int sensor, int tempC) {
+        Integer previous = cellTemps.put(sensor, tempC);
+        if (previous == null)
+            Log.i(TAG, "Cell temperature sensor " + sensor + " = " + tempC + " C (plain signals), total " +
                     cellTemps.size() + "/" + EXPECTED_CELL_TEMP_COUNT);
     }
 
