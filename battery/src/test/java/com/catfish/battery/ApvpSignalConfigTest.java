@@ -88,26 +88,35 @@ public class ApvpSignalConfigTest {
         assertEquals(31.0, got.get(0)[1], 0);
     }
 
-    @Test public void plainCellTempPairsOnlyWithinOneUpdate() {
+    @Test public void plainCellTempUsesTheLastTemperatureWhenOnlyTheSensorNumberChanges() {
         ApvpBatteryStream.Plan plan = ApvpBatteryStream.plan(ApvpSignalConfig.parse(CONFIG_244520));
+        ApvpBatteryStream.TempMux mux = new ApvpBatteryStream.TempMux();
         List<double[]> scalars = new ArrayList<>();
         List<int[]> temps = new ArrayList<>();
+        // as on the car: initial values together, then the sensor number alone while the temperature is unchanged
         ApvpBatteryStream.decodeUpdate(update(signal(306185635, "HvBattCellTInfoHvBattTSnsrNr", 7f),
-                signal(306185640, "HvBattCellTInfoHvBattSnsrT", 24f)), plan, listener(scalars, temps));
-        assertEquals(1, temps.size());
-        assertArrayEquals(new int[]{7, 24}, temps.get(0));
+                signal(306185640, "HvBattCellTInfoHvBattSnsrT", 20f)), plan, mux, listener(scalars, temps));
+        for (int n = 8; n <= 12; n++)
+            ApvpBatteryStream.decodeUpdate(update(signal(306185635, "HvBattCellTInfoHvBattTSnsrNr", n)), plan, mux, listener(scalars, temps));
+        ApvpBatteryStream.decodeUpdate(update(signal(306185635, "HvBattCellTInfoHvBattTSnsrNr", 1f),
+                signal(306185640, "HvBattCellTInfoHvBattSnsrT", 24f)), plan, mux, listener(scalars, temps));
+        assertEquals(7, temps.size());
+        assertArrayEquals(new int[]{7, 20}, temps.get(0));
+        assertArrayEquals(new int[]{12, 20}, temps.get(5));
+        assertArrayEquals(new int[]{1, 24}, temps.get(6));
         assertTrue(scalars.isEmpty());
-        ApvpBatteryStream.decodeUpdate(update(signal(306185635, "HvBattCellTInfoHvBattTSnsrNr", 8f)), plan, listener(scalars, temps));
-        ApvpBatteryStream.decodeUpdate(update(signal(306185640, "HvBattCellTInfoHvBattSnsrT", 25f)), plan, listener(scalars, temps));
-        assertEquals(1, temps.size());
         assertNull(ApvpBatteryStream.cellTempPair(new double[]{13, 20}));
         assertNull(ApvpBatteryStream.cellTempPair(new double[]{2.5, 20}));
     }
 
-    @Test public void plainCellTempMustSitInsideThePackRange() {
-        assertTrue(VehicleBatteryReader.plainCellTempPlausible(24, 22d, 26d));
-        assertFalse(VehicleBatteryReader.plainCellTempPlausible(64, 22d, 26d)); // e.g. an unremoved +40 offset
-        assertFalse(VehicleBatteryReader.plainCellTempPlausible(24, null, 26d));
+    @Test public void nothingIsEmittedBeforeATemperatureIsKnown() {
+        ApvpBatteryStream.Plan plan = ApvpBatteryStream.plan(ApvpSignalConfig.parse(CONFIG_244520));
+        ApvpBatteryStream.TempMux mux = new ApvpBatteryStream.TempMux();
+        List<int[]> temps = new ArrayList<>();
+        ApvpBatteryStream.decodeUpdate(update(signal(306185635, "HvBattCellTInfoHvBattTSnsrNr", 3f)), plan, mux, listener(new ArrayList<>(), temps));
+        assertTrue(temps.isEmpty());
+        ApvpBatteryStream.decodeUpdate(update(signal(308282795, "HvBattTMax", 21f)), plan, mux, listener(new ArrayList<>(), temps));
+        assertTrue(temps.isEmpty()); // unrelated signals do not re-emit the current sensor
     }
 
     @Test public void loadFindsTheTableDirectlyOrInAPlatformDir() throws Exception {

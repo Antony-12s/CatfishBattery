@@ -98,7 +98,7 @@ final class ApvpBatteryStream implements AutoCloseable {
         void scalar(int id, double value);
         void cells(int[] payload);
         void cellTemps(int[] payload);
-        /** One sensor (1..12) from the plain HvBattCellTInfo pair, both taken from the same update. */
+        /** One sensor (1..12) from the plain HvBattCellTInfo multiplex, see {@link TempMux}. */
         void cellTemp(int sensor, int tempC);
         void connected(boolean connected);
     }
@@ -142,13 +142,14 @@ final class ApvpBatteryStream implements AutoCloseable {
             releaseTransport();
             if (plan == null) plan = resolvePlan();
             final Plan active = plan;
+            final TempMux mux = new TempMux(); // per connection: the server's initial values restart it
             channel = OkHttpChannelBuilder.forAddress(HOST, PORT).usePlaintext().build();
             call = channel.newCall(DESCRIPTOR, CallOptions.DEFAULT);
             StreamObserver<byte[]> response = new StreamObserver<byte[]>() {
                 @Override public void onNext(byte[] value) {
                     if (closed || attempt != generation) return;
                     try {
-                        decodeUpdate(value, active, listener);
+                        decodeUpdate(value, active, mux, listener);
                         if (!healthy) { healthy = true; listener.connected(true); Log.i(TAG, "APVP battery subscription receiving"); }
                     } catch (RuntimeException e) { Log.w(TAG, "Rejected malformed APVP battery payload", e); }
                 }
@@ -194,15 +195,33 @@ final class ApvpBatteryStream implements AutoCloseable {
 
     static void decodeUpdate(byte[] raw,Listener listener) { decodeUpdate(raw,BUILT_IN,listener); }
 
-    static void decodeUpdate(byte[] raw,Plan plan,Listener listener) {
+    static void decodeUpdate(byte[] raw,Plan plan,Listener listener) { decodeUpdate(raw,plan,new TempMux(),listener); }
+
+    static void decodeUpdate(byte[] raw,Plan plan,TempMux mux,Listener listener) {
         // Transfer stream: repeated update at field 1, repeated Signal at update field 3.
         for(Field update:fields(raw)) if(update.tag==1 && update.bytes!=null) {
-            // sensor number and temperature are only paired when they arrive together, never across updates
             double[] pair={Double.NaN,Double.NaN};
             for(Field signal:fields(update.bytes)) if(signal.tag==3 && signal.bytes!=null)
                 decodeSignal(signal.bytes,plan,listener,pair);
-            int[] temp=cellTempPair(pair);
+            int[] temp=mux.accept(pair);
             if(temp!=null) listener.cellTemp(temp[0],temp[1]);
+        }
+    }
+
+    /**
+     * HvBattCellTInfo is one multiplexed BECM frame: the sensor number cycles 1..12 (~10 updates/s) and the
+     * temperature belongs to the number in the same frame. The transfer server only sends a signal when its value
+     * changes (sniffed read-only on build 244520, 2026-11-20: 1790 sensor-number updates in 180 s, the temperature
+     * once, at subscribe), so an update without a temperature means "unchanged": the sensor takes the last one.
+     * A temperature with no number belongs to the unchanged current sensor. Nothing is emitted before both are known.
+     */
+    static final class TempMux {
+        private double sensor=Double.NaN, temp=Double.NaN;
+        int[] accept(double[] pair) {
+            boolean any=!Double.isNaN(pair[0]) || !Double.isNaN(pair[1]);
+            if(!Double.isNaN(pair[0])) sensor=pair[0];
+            if(!Double.isNaN(pair[1])) temp=pair[1];
+            return any?cellTempPair(new double[]{sensor,temp}):null;
         }
     }
 

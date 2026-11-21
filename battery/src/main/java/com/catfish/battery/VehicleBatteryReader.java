@@ -313,21 +313,15 @@ public final class VehicleBatteryReader {
     }
 
     /**
-     * Plain HvBattCellTInfo pair (firmware without the struct). The value's scaling is not yet confirmed on a car,
-     * so a sensor is only shown when it lies inside the BMS's own pack min/max (+-2 C); otherwise it stays blank.
+     * Plain HvBattCellTInfo multiplex (firmware without the struct). Whole degrees C, no offset: on build 244520 every
+     * sensor read 20 while the float HvBattTMax/TMin read 20.5. Sensors 5-12 are coolant, bus bars, BMS board and
+     * air, so no pack min/max bound applies; cellTempPair already limits it to -40..120.
      */
     private synchronized void acceptPlainCellTemp(int sensor, int tempC) {
-        Double min = value(observedScalars, HV_TEMP_MIN_C, -40d, 120d), max = value(observedScalars, HV_TEMP_MAX_C, -40d, 120d);
-        if (!plainCellTempPlausible(tempC, min, max)) return;
         Integer previous = cellTemps.put(sensor, tempC);
         if (previous == null)
             Log.i(TAG, "Cell temperature sensor " + sensor + " = " + tempC + " C (plain signals), total " +
                     cellTemps.size() + "/" + EXPECTED_CELL_TEMP_COUNT);
-    }
-
-    static boolean plainCellTempPlausible(int tempC, Double packMinC, Double packMaxC) {
-        return packMinC != null && packMaxC != null && packMinC <= packMaxC &&
-                tempC >= packMinC - 2 && tempC <= packMaxC + 2;
     }
 
     /** PA_HvBattCellTinfo_Res data[6] = valid, temp+40, sensor 1..12, 0, 0, 0; returns {sensor, degC} or null. */
