@@ -152,7 +152,7 @@ Do not resolve signer mismatches by uninstalling or clearing data.
 ## Platform check, read-only policy and event-driven Park guard (2026-11-19)
 - The vehicle is identified by the platform code in Build.PRODUCT / ro.build.product (e245 EX5, p145 EX5 EM-i,
   e22 or p22 EX2), not by the model name or the APVP folder name (this e245 ships its APVP table as p145_j1).
-- UdsPolicy is the single gate for UDS: only 22 49 6D to the BECM (0x1635) on e245. ReadOnlyPolicyTest fails the
+- UdsPolicy is the single gate for UDS: only 22 49 6D to the BECM (0x1635); originally e245 only, now any platform (below). ReadOnlyPolicyTest fails the
   build if any other source sends UDS or names a vehicle-property write.
 - The BECM read's Park guard listens to GEAR_SELECTION and CURRENT_GEAR events instead of polling. Leaving Park, an
   unknown value or an error event voids the read for good (generation token); the whole read has a 15 s budget.
@@ -180,3 +180,13 @@ Do not resolve signer mismatches by uninstalling or clearing data.
   Headings, kickers, the sensor legend and its leader lines use the muted colour.
 - Cells on the schematic at night: jade #42CB80, amber #EB9A04, berry #FA7FB3. The B+ bus stays red: it marks
   polarity, not a warning. The day theme is unchanged.
+
+## BECM SOH read on any platform (2026-11-21)
+- UdsPolicy no longer checks the platform: the BECM SOH read (22 49 6D to 0x1635) may run on the EX5 EM-i, EX2 or an
+  unrecognised build. It is still the only UDS request, still Park-guarded and once a day. Verified on the EX5 only;
+  elsewhere a BECM that does not know the DID answers 7F 22 31 (or times out) and SOH stays on canspi. A missing
+  Dxapp.apk fails at class loading before anything is sent.
+- EX5 EM-i (p145): the 2.2 OTA (ro.build.product antora1000_p145_eu, 24.07.01.263020.263924) lists all 45 of the app's
+  APVP names, including the PA_HvBattCellTinfo_Res struct, so name resolution covers it; most built-in ids are 1-2 off
+  there. Trimmed table: battery/src/test/resources/apvp/signal_config_263924_p145_trimmed.json. Its pack layout (cell
+  and sensor counts) is not in the firmware and stays unknown until a live car is read. No EX2 firmware has been seen.
