@@ -103,7 +103,7 @@ final class BecmSoh {
 
     /** One guarded DID 496D read; throws with the reason when anything is off. */
     static double read(Context context) throws Exception {
-        UdsPolicy.require(VehiclePlatform.current(), BECM, REQUEST); // EX5-only, before anything is opened
+        UdsPolicy.require(BECM, REQUEST); // before anything is opened
         try (ParkGuard park = watchGear(context)) {
             int token = park.awaitPark(2000);
             return readInPark(park, token);
@@ -192,7 +192,7 @@ final class BecmSoh {
             park.check(token);
             if ((Integer) getMode.invoke(client) != MODE) throw new IOException("Requested diagnostic mode did not become active");
             awaiting.set(true);
-            UdsPolicy.require(VehiclePlatform.current(), BECM, REQUEST);
+            UdsPolicy.require(BECM, REQUEST);
             boolean accepted = (Boolean) api.getMethod("sendUdsPayload", int.class, char.class, char.class, int.class, byte[].class)
                     .invoke(client, MODE, TESTER, BECM, REQUEST.length, REQUEST);
             if (!accepted) throw new IOException("Middleware rejected the request");

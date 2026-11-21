@@ -4,8 +4,9 @@ import java.io.IOException;
 import java.util.Arrays;
 
 /**
- * The only UDS request this app may ever send: the BECM state of health, 22 49 6D to 0x1635, on the EX5 (e245)
- * where it is verified. BecmSoh checks every request here right before it goes out; ReadOnlyPolicyTest keeps every
+ * The only UDS request this app may ever send: the BECM state of health, 22 49 6D to 0x1635. Verified on the EX5
+ * (e245); allowed on any platform because it is a read (ReadDataByIdentifier), and a car whose BECM does not answer
+ * it just gets a negative response or a timeout and the canspi fallback. BecmSoh checks every request here right before it goes out; ReadOnlyPolicyTest keeps every
  * other source file from sending UDS or writing vehicle properties.
  */
 final class UdsPolicy {
@@ -14,12 +15,12 @@ final class UdsPolicy {
 
     private UdsPolicy() { }
 
-    static boolean allowed(VehiclePlatform platform, char ecu, byte[] request) {
-        return platform == VehiclePlatform.EX5 && ecu == BECM && Arrays.equals(request, BECM_SOH);
+    static boolean allowed(char ecu, byte[] request) {
+        return ecu == BECM && Arrays.equals(request, BECM_SOH);
     }
 
-    static void require(VehiclePlatform platform, char ecu, byte[] request) throws IOException {
-        if (!allowed(platform, ecu, request))
-            throw new IOException("UDS request not allowed: platform " + platform + ", ECU " + Integer.toHexString(ecu));
+    static void require(char ecu, byte[] request) throws IOException {
+        if (!allowed(ecu, request))
+            throw new IOException("UDS request not allowed: ECU " + Integer.toHexString(ecu));
     }
 }

@@ -72,6 +72,28 @@ public class ApvpSignalConfigTest {
         assertEquals(308282804, idFor(plan, "HvBattUDc"));
     }
 
+    /** EX5 EM-i (p145) firmware 24.07.01.263020.263924, table from the 2.2 OTA (vendor/etc/transfers/libapvp/p145_j1). */
+    @Test public void theP145FirmwareResolvesEverySignalByName() throws Exception {
+        ApvpBatteryStream.Plan plan = ApvpBatteryStream.plan(ApvpSignalConfig.parse(resource("/apvp/signal_config_263924_p145_trimmed.json")));
+        assertTrue(plan.missing.toString(), plan.missing.isEmpty());
+        assertEquals(43, plan.resolved); // all but the plain cell-temperature pair: this firmware has the struct
+        assertEquals(308282804, idFor(plan, "HvBattUDc"));
+        assertEquals(308282838, idFor(plan, "HvBattTMax"));
+        assertEquals(308282811, idFor(plan, "HvBattSoc"));
+        assertEquals(309332908, idFor(plan, "PA_HvBattCellUIInfo_Res"));
+        assertEquals(309332906, idFor(plan, "PA_HvBattCellTinfo_Res"));
+        assertEquals(308282959, idFor(plan, "IDcDcActLoSideIDcDcActLoSide"));
+        String request = new String(ApvpBatteryStream.subscription(plan), StandardCharsets.ISO_8859_1);
+        assertFalse(request.contains("HvBattCellTInfoHvBattSnsrT"));
+    }
+
+    @Test public void builtInIdsAreWrongOnTheP145Firmware() throws Exception {
+        ApvpBatteryStream.Plan plan = ApvpBatteryStream.plan(ApvpSignalConfig.parse(resource("/apvp/signal_config_263924_p145_trimmed.json")));
+        int same = 0;
+        for (int i = 0; i < plan.ids.length; i++) if (plan.names[i] != null && plan.ids[i] == ApvpBatteryStream.BUILT_IN.ids[i]) same++;
+        assertTrue("built-in ids matching p145 263924: " + same, same < plan.resolved / 2);
+    }
+
     @Test public void builtInPlanIsTheOldSubscription() {
         String request = new String(ApvpBatteryStream.subscription(), StandardCharsets.ISO_8859_1);
         assertTrue(request.contains("PA_HvBattCellTinfo_Res"));

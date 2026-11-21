@@ -11,6 +11,7 @@ charging graphs, a charge log with costs, and the settings behind them.
 | **Version** | 1.4 (`versionCode` 5) on this branch; latest release is [1.3](https://github.com/Antony-12s/CatfishBattery/releases) |
 | **Android** | 11+ (`minSdk` 30), built for the EX5 2560x1600 head unit |
 | **Vehicle access** | Read-only. It never writes vehicle properties |
+| **Vehicles** | EX5 (e245): verified on the car. EX5 EM-i (p145) and EX2 (e22/p22): detected, battery signals resolved by name from the car's APVP table, BECM SOH read attempted; not verified on a car, and the pack drawing is the EX5's 118 cells / 12 sensors |
 
 ## What it shows
 

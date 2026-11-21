@@ -11,6 +11,7 @@ public class VehiclePlatformTest {
         assertEquals(VehiclePlatform.EX5, VehiclePlatform.of("antora1000_e245_plus")); // this car: ro.build.product
         assertEquals(VehiclePlatform.EX5, VehiclePlatform.of("antora1000_e245_plus_car")); // its ro.product.name
         assertEquals(VehiclePlatform.EX5_EMI, VehiclePlatform.of("antora1000_P145_car"));
+        assertEquals(VehiclePlatform.EX5_EMI, VehiclePlatform.of("antora1000_p145_eu")); // 2.2 OTA ro.build.product
         assertEquals(VehiclePlatform.EX2, VehiclePlatform.of("x_e22_car"));
         assertEquals(VehiclePlatform.EX2, VehiclePlatform.of("x_p22_car"));
     }

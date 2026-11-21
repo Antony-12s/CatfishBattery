@@ -16,25 +16,22 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.Test;
 
-/** The app is read-only: one UDS request on one platform, and no vehicle-property write anywhere in the sources. */
+/** The app is read-only: one UDS request (on any platform), and no vehicle-property write anywhere in the sources. */
 public class ReadOnlyPolicyTest {
     private static final byte[] SOH = {0x22, 0x49, 0x6D};
 
-    @Test public void onlyTheBecmSohReadOnTheEx5() throws IOException {
-        assertTrue(UdsPolicy.allowed(VehiclePlatform.EX5, (char) 0x1635, SOH));
-        UdsPolicy.require(VehiclePlatform.EX5, (char) 0x1635, SOH);
+    @Test public void onlyTheBecmSohRead() throws IOException {
+        assertTrue(UdsPolicy.allowed((char) 0x1635, SOH));
+        UdsPolicy.require((char) 0x1635, SOH);
     }
 
     @Test public void everythingElseIsRefused() {
-        assertFalse(UdsPolicy.allowed(VehiclePlatform.EX5_EMI, (char) 0x1635, SOH));
-        assertFalse(UdsPolicy.allowed(VehiclePlatform.EX2, (char) 0x1635, SOH));
-        assertFalse(UdsPolicy.allowed(null, (char) 0x1635, SOH));
-        assertFalse(UdsPolicy.allowed(VehiclePlatform.EX5, (char) 0x1001, SOH));
-        assertFalse(UdsPolicy.allowed(VehiclePlatform.EX5, (char) 0x1635, new byte[]{0x22, 0x49, 0x6E}));
-        assertFalse(UdsPolicy.allowed(VehiclePlatform.EX5, (char) 0x1635, new byte[]{0x2E, 0x49, 0x6D, 0x00}));
-        assertFalse(UdsPolicy.allowed(VehiclePlatform.EX5, (char) 0x1635, new byte[]{0x22, 0x49, 0x6D, 0x00}));
-        assertFalse(UdsPolicy.allowed(VehiclePlatform.EX5, (char) 0x1635, null));
-        assertThrows(IOException.class, () -> UdsPolicy.require(VehiclePlatform.EX5, (char) 0x1635, new byte[]{0x14, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF}));
+        assertFalse(UdsPolicy.allowed((char) 0x1001, SOH));
+        assertFalse(UdsPolicy.allowed((char) 0x1635, new byte[]{0x22, 0x49, 0x6E}));
+        assertFalse(UdsPolicy.allowed((char) 0x1635, new byte[]{0x2E, 0x49, 0x6D, 0x00}));
+        assertFalse(UdsPolicy.allowed((char) 0x1635, new byte[]{0x22, 0x49, 0x6D, 0x00}));
+        assertFalse(UdsPolicy.allowed((char) 0x1635, null));
+        assertThrows(IOException.class, () -> UdsPolicy.require((char) 0x1635, new byte[]{0x14, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF}));
     }
 
     private static final Pattern VEHICLE_WRITE = Pattern.compile(
