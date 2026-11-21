@@ -25,6 +25,13 @@ public final class VehicleBatteryReader {
     private static final int SOC_PERCENT = 0x2160730E;
     private static final int SOC_DISPLAY = 0x21608057;
     private static final int SOC_APVP = 0x126005BA;
+    /**
+     * SOC preference. HvBattSoc (APVP, the BMS value in 0.05 % steps) first: on build 244520 both VHAL percentages are
+     * whole numbers (2026-11-21: TYPE_EV_BATTERY_PERCENTAGE 80.0, DispHvBattLvlOfChrg 80.0, HvBattSoc 80.95), so the
+     * page showed "80.0 %". The VHAL values are the fallback while APVP is down (its scalars are dropped on disconnect).
+     */
+    static final int[] SOC_IDS = {SOC_APVP, SOC_PERCENT, SOC_DISPLAY};
+    static final String[] SOC_SOURCES = {"HvBattSoc", "TYPE_EV_BATTERY_PERCENTAGE", "DispHvBattLvlOfChrg"};
     // Explicitly selected for the web dashboard from the supplied EVCC export.
     private static final int RANGE_KM = 291504904;
     private static final int ENERGY_WH = 0x11600309;
@@ -199,10 +206,9 @@ public final class VehicleBatteryReader {
             if (!vhalConnected && !apvpConnected) return unavailableSnapshot();
             Map<Integer, Float> floats = VhalStream.floats();
             Map<Integer, Integer> integers = VhalStream.ints();
-            Double soc = firstReading(floats, integers, 0d, 100d, SOC_PERCENT, SOC_DISPLAY, SOC_APVP);
-            String source = reading(floats, integers, SOC_PERCENT, 0d, 100d) != null ? "TYPE_EV_BATTERY_PERCENTAGE" :
-                    reading(floats, integers, SOC_DISPLAY, 0d, 100d) != null ? "DispHvBattLvlOfChrg" :
-                    reading(floats, integers, SOC_APVP, 0d, 100d) != null ? "HvBattSoc" : "";
+            int socAt = pickSoc(id -> reading(floats, integers, id, 0d, 100d));
+            Double soc = socAt < 0 ? null : reading(floats, integers, SOC_IDS[socAt], 0d, 100d);
+            String source = socAt < 0 ? "" : SOC_SOURCES[socAt];
             Double cellMax = reading(floats, integers, CELL_MAX_V, 2d, 5d);
             Double cellMin = reading(floats, integers, CELL_MIN_V, 2d, 5d);
             if (cellMax == null && apvpConnected) cellMax = value(observedScalars, ApvpBatteryStream.CELL_U_MAX, 2d, 5d);
@@ -405,13 +411,10 @@ public final class VehicleBatteryReader {
         return found;
     }
 
-    private synchronized Double firstReading(Map<Integer, ?> floats, Map<Integer, ?> integers,
-                                             double low, double high, int... ids) {
-        for (int id : ids) {
-            Double found = reading(floats, integers, id, low, high);
-            if (found != null) return found;
-        }
-        return null;
+    /** Index into SOC_IDS of the first SOC that reads (in range), -1 when none does. */
+    static int pickSoc(java.util.function.IntFunction<Double> read) {
+        for (int i = 0; i < SOC_IDS.length; i++) if (read.apply(SOC_IDS[i]) != null) return i;
+        return -1;
     }
 
     static Double powerKw(Double voltageV, Double currentA) {
